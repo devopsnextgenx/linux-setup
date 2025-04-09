@@ -1,0 +1,17 @@
+blur-my-shell@aunetx
+burn-my-windows@schneegans.github.com
+CoverflowAltTab@palatis.blogspot.com
+dash-to-dock@micxgx.gmail.com
+dev-container-manager@devopsnextgenx
+gnome-ui-tune@itstime.tech
+just-perfection-desktop@just-perfection
+monitor@astraext.github.io
+openbar@neuromorph
+Rounded_Corners@lennart-k
+user-theme@gnome-shell-extensions.gcampax.github.com
+widgets@markocic
+arcmenu@arcmenu.com
+ding@rastersoft.com
+tiling-assistant@ubuntu.com
+ubuntu-appindicators@ubuntu.com
+ubuntu-dock@ubuntu.com

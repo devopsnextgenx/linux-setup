@@ -48,7 +48,12 @@ show_progress() {
     local fill=$(printf "%${completed}s" | tr ' ' '#')
     local empty=$(printf "%${remaining}s" | tr ' ' '.')
     
-    printf "\r[%s%s] %3d%%" "$fill" "$empty" "$percent"
+    # Save cursor position, move to progress bar line, clear it and update
+    tput sc
+    tput cup "$PROGRESS_BAR_LINE" 0
+    printf "\033[2K"  # Clear the entire line
+    printf "[%s%s] %3d%% (%d/%d)" "$fill" "$empty" "$percent" "$current" "$total"
+    tput rc  # Restore cursor position
 }
 
 # Get UUID of extension from URL or ID
@@ -225,8 +230,12 @@ process_extensions() {
     done < "$extensions_file"
     
     echo -e "${BLUE}=== Starting Installation of $total GNOME Extensions ===${NC}"
-    echo
     
+    # Store the line number where progress bar should always appear
+    PROGRESS_BAR_LINE=$(tput lines)
+    tput sc  # Save cursor position
+    
+    # Initialize progress bar
     show_progress 0 $total
     
     # Read the file line by line again for actual processing
@@ -236,15 +245,19 @@ process_extensions() {
         [[ -z "$line" ]] && continue
         
         current=$((current + 1))
+        
+        # Show current extension being processed
+        echo -e "\n${BLUE}[$current/$total] Processing: ${display_name}${NC}"
+        
+        # Update progress bar
         show_progress $current $total
         
+        # Process extension
         # Prepare extension name/id for display
         local display_name="$line"
         if [[ ${#display_name} -gt 40 ]]; then
             display_name="${display_name:0:37}..."
         fi
-        
-        echo -e "\n\n${BLUE}[$current/$total] Processing: $display_name${NC}"
         
         # Install the extension
         install_extension "$line"
@@ -269,9 +282,16 @@ process_extensions() {
             echo -e "${RED}✗ Failed to install extension${NC}"
             failed+=("$line")
         fi
+        
+        # Restore cursor position for next progress update
+        tput rc
     done < "$extensions_file"
     
-    # Print final newline after progress bar
+    # Clear progress bar line at the end
+    tput cup "$PROGRESS_BAR_LINE" 0
+    printf "\033[2K"
+    
+    # Move to next line after completion
     echo -e "\n"
     
     # Generate detailed report
@@ -312,6 +332,7 @@ process_extensions() {
     echo -e "${BLUE}Press Alt+F2, type 'r' and press Enter (in X11), or log out and back in (in Wayland).${NC}"
 }
 
+extensions_file="$1"
 # Show usage if no arguments provided
 if [[ $# -eq 0 ]]; then
     echo "Usage: $0 EXTENSIONS_FILE"
@@ -327,11 +348,14 @@ if [[ $# -eq 0 ]]; then
     echo "307  # Dash to Dock"
     echo "https://extensions.gnome.org/extension/3628/arcmenu/"
     echo "user-theme@gnome-shell-extensions.gcampax.github.com"
-    exit 1
+    extensions_file="extensions.txt"
+    echo "------------------------------"
+    echo " Default file: $extensions_file"
+    echo "------------------------------"
 fi
 
 # Process the extensions file
-process_extensions "$1"
+process_extensions "$extensions_file"
 
 # Finish
 echo -e "\n${GREEN}Script completed.${NC}"

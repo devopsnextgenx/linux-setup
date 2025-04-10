@@ -20,6 +20,11 @@ packages=(
     "podman"
     "yq"
     "jq"
+    "sassc"
+    "gnome-tweaks"
+    "gnome-shell-extension-manager"
+    "neofetch"
+    "git-lfs"
 )
 
 # Progress bar function
@@ -66,10 +71,10 @@ done
 echo -e "\nAll packages installed successfully!"
 
 
-# setup tools
-./1.shared.sh
-./5.gnome-extensions.sh
-./10.llm.sh
+# # setup tools
+# ./1.shared.sh
+# ./5.gnome-extensions.sh
+# ./10.llm.sh
 
-# install mission-center
-./20.flatpak.sh
+# # install mission-center
+# ./20.flatpak.sh

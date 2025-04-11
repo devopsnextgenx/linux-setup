@@ -13,6 +13,7 @@ APPS=(
     "org.videolan.VLC"
     "io.github.shiftey.Desktop"
     "org.libreoffice.LibreOffice"
+    "org.geogebra.GeoGebra"
 )
 
 # loop through and install applications

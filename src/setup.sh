@@ -25,6 +25,7 @@ packages=(
     "gnome-shell-extension-manager"
     "neofetch"
     "git-lfs"
+    "rocm-smi"
 )
 
 # Progress bar function

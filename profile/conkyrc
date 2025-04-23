@@ -1,0 +1,137 @@
+conky.config = {
+    -- Window settings
+    alignment = 'top_right',
+    gap_x = 20,
+    gap_y = 50,
+    minimum_height = 1080,
+    minimum_width = 960,  -- 50% of 1920px standard screen
+    maximum_width = 960,
+    
+    -- Graphics settings
+    double_buffer = true,
+    background = true,
+    border_width = 1,
+    draw_borders = false,
+    draw_graph_borders = true,
+    draw_outline = false,
+    draw_shades = false,
+    
+    -- Text settings
+    use_xft = true,
+    font = 'Ubuntu:size=10',
+    override_utf8_locale = true,
+    uppercase = false,
+    
+    -- Window appearance
+    own_window = true,
+    own_window_class = 'Conky',
+    own_window_type = 'desktop',
+    own_window_transparent = false,
+    own_window_argb_visual = true,
+    own_window_argb_value = 102,  -- 60% transparency (255 * 0.4)
+    own_window_colour = '000000',
+    
+    -- Colors
+    default_color = 'white',
+    default_outline_color = 'white',
+    default_shade_color = 'white',
+    
+    -- Update intervals
+    update_interval = 1.0,
+    total_run_times = 0,
+    
+    -- Misc settings
+    cpu_avg_samples = 2,
+    net_avg_samples = 2,
+    no_buffers = true,
+    out_to_console = false,
+    out_to_stderr = false,
+    extra_newline = false,
+    stippled_borders = 0,
+    
+    -- Wayland compatibility
+    xinerama_head = 0,
+    
+    -- LUA Load
+    lua_load = '',
+    lua_draw_hook_pre = '',
+    lua_draw_hook_post = '',
+    
+    -- Custom template settings
+    template0 = [[${color lightgrey}${alignr}\1:${color} ${goto 170}${voffset 1}${execbar echo \2}%]],
+    template1 = [[${color lightgrey}\1:${color} ${goto 170}${voffset 1}${execbarval \2}%]],
+    template2 = [[${color lightgrey}\1:${color} ${goto 170}${voffset 1}${execbar \2}%]]
+}
+
+conky.text = [[
+# Header with system information
+${alignc}${font Ubuntu:size=14:bold}${color dodgerblue}SYSTEM INFORMATION${color}${font}
+${hr 2}
+${color lightgrey}Hostname:${color} ${nodename} ${alignr}${color lightgrey}Uptime:${color} ${uptime}
+${color lightgrey}Kernel:${color} ${kernel} ${alignr}${color lightgrey}Architecture:${color} ${machine}
+${color lightgrey}Distribution:${color} Ubuntu 24.10 ${alignr}${color lightgrey}User:${color} ${user_names}
+${hr 2}
+
+# Two column layout starts here
+${voffset 10}${goto 0}${color}# Column 1 - CPU and GPU
+${goto 0}${font Ubuntu:size=12:bold}${color red}CPU INFORMATION${color}${font}
+${goto 0}${color orange}AMD Ryzen 5 5600H (12) @ ${freq_g} GHz${color}
+${goto 0}${color lightgrey}CPU Usage:${color} ${cpu}% ${alignr 515}${color lightgrey}Temperature:${color} ${acpitemp}°C
+${goto 0}${cpugraph cpu0 128,450 00ff00 ff0000 0.9 -t}
+
+${goto 0}${color lightgrey}CPU Core Usage:${color}
+${goto 0}${color lightgrey}Core 1:${color} ${cpu cpu1}% ${alignr 515}${cpubar 8,350 cpu1} 
+${goto 0}${color lightgrey}Core 2:${color} ${cpu cpu2}% ${alignr 515}${cpubar 8,350 cpu2}
+${goto 0}${color lightgrey}Core 3:${color} ${cpu cpu3}% ${alignr 515}${cpubar 8,350 cpu3}
+${goto 0}${color lightgrey}Core 4:${color} ${cpu cpu4}% ${alignr 515}${cpubar 8,350 cpu4}
+${goto 0}${color lightgrey}Core 5:${color} ${cpu cpu5}% ${alignr 515}${cpubar 8,350 cpu5}
+${goto 0}${color lightgrey}Core 6:${color} ${cpu cpu6}% ${alignr 515}${cpubar 8,350 cpu6}
+${goto 0}${color lightgrey}Core 7:${color} ${cpu cpu7}% ${alignr 515}${cpubar 8,350 cpu7}
+${goto 0}${color lightgrey}Core 8:${color} ${cpu cpu8}% ${alignr 515}${cpubar 8,350 cpu8}
+${goto 0}${color lightgrey}Core 9:${color} ${cpu cpu9}% ${alignr 515}${cpubar 8,350 cpu9}
+${goto 0}${color lightgrey}Core 10:${color} ${cpu cpu10}% ${alignr 515}${cpubar 8,350 cpu10}
+${goto 0}${color lightgrey}Core 11:${color} ${cpu cpu11}% ${alignr 515}${cpubar 8,350 cpu11}
+${goto 0}${color lightgrey}Core 12:${color} ${cpu cpu12}% ${alignr 515}${cpubar 8,350 cpu12}
+
+${goto 0}${voffset 50}${font Ubuntu:size=12:bold}${color FFEB3B}NETWORK INFORMATION${color}${font}
+${goto 0}${color lightgrey}Local IP:${color} ${addr wlo1} ${alignr 520}${color lightgrey}Public IP:${color} ${execi 3600 curl -s ifconfig.me}
+${goto 0}${color lightgrey}Down:${color} ${downspeed wlo1} ${alignr 520}${color lightgrey}Up:${color} ${upspeed wlo1}
+${goto 0}${downspeedgraph wlo1 64,220 00FF00 FF0000 -t} ${upspeedgraph wlo1 64,220 00FF00 FF0000 -t}
+${goto 0}${color lightgrey}Total Down:${color} ${totaldown wlo1} ${alignr 520}${color lightgrey}Total Up:${color} ${totalup wlo1}
+
+
+# Column 2 - Memory and Storage
+${voffset -662}${goto 480}${font Ubuntu:size=12:bold}${color 4CAF50}MEMORY INFORMATION${color}${font}
+${goto 480}${color lightgrey}RAM:${color} ${mem}/${memmax} (${memperc}%)
+${goto 480}${execibar echo ${memperc}}
+${goto 480}${memgraph 128,450 00ff00 ff0000 -t}
+
+${goto 480}${color lightgrey}SWAP:${color} ${swap}/${swapmax} (${swapperc}%)
+${goto 480}${swapbar 10,450}
+
+# ${goto 480}${color lightgrey}Top Memory Usage:${color}
+# ${goto 480}${color}${top_mem name 1}${alignr}${top_mem mem_res 1}
+# ${goto 480}${color}${top_mem name 2}${alignr}${top_mem mem_res 2}
+# ${goto 480}${color}${top_mem name 3}${alignr}${top_mem mem_res 3}
+${goto 480}${font Ubuntu:size=12:bold}${color 9C27B0}GPU INFORMATION${color}${font}
+${goto 480}${color lightgrey}NVIDIA GeForce GTX 1650:${color}
+${goto 480}${color lightgrey}GPU Temp:${color} ${exec nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits}°C ${alignr 40}${color lightgrey}Power:${color} ${exec nvidia-smi --query-gpu=power.draw --format=csv,noheader,nounits}W
+${goto 480}${execbar 8,223 nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits} ${execbar 8,223 echo $(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits | awk '{print int(($1/4096)*100)}')}
+${goto 480}${execgraph "nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits" 30,223 00ff00 ff0000 -t} ${execgraph "nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits | awk '{printf "%.2f%%\n", ($1/4096)*100}'" 30,223 00ff00 ff0000 -t}
+${goto 480}${color lightgrey}AMD :${color}
+${goto 480}${color lightgrey}GPU Temp:${color} ${exec rocm-smi -t --csv|grep -o '[0-9.]\+'|tail -1}°C ${alignr 40}${color lightgrey}Kernal:${color} ${exec rocm-smi --showdriverversion |grep generic |awk '{print $NF}'}
+${goto 480}${execbar 8,223 rocm-smi -u --csv|grep -o '[0-9]\+'| awk '{print $NF}'|tail -1} ${execbar 8,223 echo $(rocm-smi --showmeminfo vram --csv|grep -o '[0-9]\+'| awk '{print $NF}'|tail -1 | awk '{print int(($1/536870912)*100)}')}
+${goto 480}${execgraph "rocm-smi -u --csv|grep -o '[0-9]\+'| awk '{print $NF}'|tail -1" 30,223 00ff00 ff0000 -t} ${execgraph "rocm-smi --showmeminfo vram --csv|grep -o '[0-9]\+'| awk '{print $NF}'|tail -1 | awk '{print int(($1/536870912)*100)}'" 30,223 00ff00 ff0000 -t}
+
+${goto 480}${voffset 4}${font Ubuntu:size=12:bold}${color 03A9F4}STORAGE INFORMATION${color}${font}
+${goto 480}${color lightgrey}Root:${color} ${fs_used /}/${fs_size /} (${fs_used_perc /}%)
+${goto 480}${color lightgrey}I/O Read:${color} ${diskio_read} ${alignr 40}${color lightgrey}I/O Write:${color} ${diskio_write}
+${goto 480}${diskiograph_read 64,223 00ff00 ff0000 -f} ${diskiograph_write 64,223 00ff00 ff0000 -t}
+
+
+# Row spanning both columns for system logs
+${voffset 0}${font Ubuntu:size=12:bold}${color FF5722}SYSTEM LOGS${color}${font}
+${hr 2}
+${color yellow}Last 50 System Logs:${color}
+${execi 10 journalctl -p err -n 50 | fold -w 180}
+]]

@@ -1,4 +1,7 @@
 #!/bin/bash
+
+./20.flatpak.sh
+
 echo -e "Setting up powerlevel10k!!!"
 chsh -s $(which zsh)
 git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/powerlevel10k
@@ -29,3 +32,4 @@ chmod 755 *.sh
 ./install.sh -o normal -c Dark -a normal -m -t all -l -N stable -HD --shell -i apple -b default -p --black --dialog
 sudo ./tweaks.sh -g
 ./tweaks.sh -F -f default
+

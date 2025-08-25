@@ -4,6 +4,7 @@ sudo mkdir -p /home/shared
 sudo groupadd shared
 sudo usermod -a -G shared $USER
 sudo chown -R :shared /home/shared
+sudo chgrp -R shared /home/shared
 sudo chmod -R g+rwx /home/shared
 sudo chmod -R g+s /home/shared
 
@@ -12,14 +13,16 @@ echo "Installing python3-venv..."
 sudo apt install python3-venv -y
 echo "Creating python3 virtual environment..."
 sudo python3 -m venv /home/shared/pyenv
-sudo chown :shared /home/shared/pyenv
-sudo chmod g+rwx /home/shared/pyenv
-sudo chmod g+s /home/shared/pyenv
+sudo chown -R :shared /home/shared/pyenv
+sudo chgrp -R shared /home/shared/pyenv
+sudo chmod -R g+rwx /home/shared/pyenv
+sudo chmod -R g+s /home/shared/pyenv
 
 # add plex/jellyfin setup
 sudo usermod -aG shared plex
 sudo mkdir -p /home/shared/plex/Library
-sudo chown :shared /home/shared/plex/Library
+sudo chown -R :shared /home/shared/plex/Library
+sudo chgrp -R shared /home/shared/plex/Library
 sudo chmod g+rwx /home/shared/plex/Library
 sudo chmod g+s /home/shared/plex/Library
 

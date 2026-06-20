@@ -34,3 +34,19 @@ sudo chmod -R g+rwx /home/shared/jellyfin
 sudo chmod -R g+s /home/shared/jellyfin
 sudo mkdir -p /home/shared/jellyfin/{jellyfin-data,jellyfin-cache,jellyfin-config}
 sudo chown -R jellyfin:shared /home/shared/jellyfin
+
+# add docker shared directory
+sudo usermod -aG docker $USER
+sudo chown :docker /home/shared/docker
+sudo chmod g+rwx /home/shared/docker
+sudo chmod g+s /home/shared/docker
+
+# modify docker daemon.json to use shared directory
+sudo mkdir -p /etc/docker
+sudo tee /etc/docker/daemon.json << EOF
+{
+  "data-root": "/home/shared/docker"
+}
+EOF
+sudo chmod 600 /etc/docker/daemon.json
+sudo systemctl restart docker

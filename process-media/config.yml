@@ -1,0 +1,5 @@
+input_folder: "/media/zbox/Crucial-X6/ShareMe/media/serials/TV Shows/Superman The Animated Series (1996)/"
+output_folder: "/media/zbox/Crucial-X6/ShareMe/media/serials/TV Shows/Superman The Animated Series (1996)/encoded"
+move_folder: "/media/zbox/Crucial-X6/ShareMe/media/serials/TV Shows/Superman The Animated Series (1996)/originals"
+ffmpeg_params: "-c:v libx265 -preset medium -crf 23 -c:a aac -b:a 192k"
+container: "mp4"   # or "mkv"

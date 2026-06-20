@@ -50,3 +50,21 @@ sudo tee /etc/docker/daemon.json << EOF
 EOF
 sudo chmod 600 /etc/docker/daemon.json
 sudo systemctl restart docker
+
+# add ollama shared directory (models, keys, server config)
+sudo mkdir -p /home/shared/ollama/.ollama/models
+sudo usermod -aG shared ollama 2>/dev/null || true
+sudo chown -R ollama:shared /home/shared/ollama
+sudo chmod -R g+rwx /home/shared/ollama
+sudo chmod -R g+s /home/shared/ollama
+
+# add lmstudio shared directory (models, runtime engines, CLI cache, app config)
+sudo mkdir -p \
+  /home/shared/lmstudio/.lmstudio/models \
+  /home/shared/lmstudio/.lmstudio/bin \
+  /home/shared/lmstudio/.lmstudio/.internal \
+  /home/shared/lmstudio/cache/lm-studio \
+  "/home/shared/lmstudio/config/LM Studio"
+sudo chown -R :shared /home/shared/lmstudio
+sudo chmod -R g+rwx /home/shared/lmstudio
+sudo chmod -R g+s /home/shared/lmstudio

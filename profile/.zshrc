@@ -19,7 +19,7 @@ if [[ -d "$HOME/bin" ]]; then
 fi
 
 # Added by LM Studio CLI (lms)
-export PATH="$PATH:/home/kira/.cache/lm-studio/bin"
+export PATH="$PATH:$HOME/.cache/lm-studio/bin:$HOME/.lmstudio/bin"
 
 # tabtab source for electron-forge package
 # uninstall by removing these lines or running `tabtab uninstall electron-forge`

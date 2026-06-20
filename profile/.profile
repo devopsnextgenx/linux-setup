@@ -32,5 +32,5 @@ export GDK_BACKEND=x11
 export GSK_RENDERER=gl
 
 # Added by LM Studio CLI (lms)
-export PATH="$PATH:/home/kira/.cache/lm-studio/bin"
+export PATH="$PATH:$HOME/.cache/lm-studio/bin:$HOME/.lmstudio/bin"
 . "$HOME/.cargo/env"

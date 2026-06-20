@@ -122,5 +122,5 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
 # Added by LM Studio CLI (lms)
-export PATH="$PATH:/home/kira/.cache/lm-studio/bin"
+export PATH="$PATH:$HOME/.cache/lm-studio/bin:$HOME/.lmstudio/bin"
 . "$HOME/.cargo/env"

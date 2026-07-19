@@ -56,13 +56,17 @@ fi
 mkdir -p "$VNC_DIR" && chmod 700 "$VNC_DIR"
 mkdir -p "$USER_SYSTEMD_DIR"
 
-# Modern, simplified xstartup for local user-slice execution
+# Modern, simplified xstartup forcing software rendering for headless GNOME
 TARGET_XSTARTUP=$(cat << 'EOF'
 #!/bin/sh
 unset SESSION_MANAGER
 unset DBUS_SESSION_BUS_ADDRESS
+
+# Force GNOME to use CPU/Software rendering instead of looking for a hardware GPU
+export LIBGL_ALWAYS_SOFTWARE=1
 export XDG_CURRENT_DESKTOP="GNOME"
 export XDG_MENU_PREFIX="gnome-"
+
 exec gnome-session
 EOF
 )

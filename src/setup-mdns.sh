@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 # Exit immediately ONLY if a foundational command fails. 
-# We handle interactive loops and bad user inputs manually.
 set -o pipefail
 
 # Ensure script runs as root
@@ -33,6 +32,7 @@ fi
 systemctl enable --now avahi-daemon.service
 
 echo "[*] Step 2: Provisioning systemd template..."
+# Using double $$ ensures systemd passes variables directly to the underlying bash execution shell
 cat << 'EOF' > "$SYSTEMD_TEMPLATE"
 [Unit]
 Description=Publish %I via mDNS ZeroConf Alias
@@ -41,7 +41,7 @@ BindsTo=avahi-daemon.service
 
 [Service]
 Type=simple
-ExecStart=/bin/bash -c 'IP=$(ip route get 1.1.1.1 | awk "{print \$7; exit}"); exec /usr/bin/avahi-publish -a -R "%I" "$IP"'
+ExecStart=/bin/bash -c 'IP=$$(ip route get 1.1.1.1 | awk "{print \$$7; exit}"); exec /usr/bin/avahi-publish -a -R "%I" "$$IP"'
 Restart=always
 RestartSec=5
 
@@ -50,7 +50,7 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-echo "[✓] Systemd unit template updated."
+echo "[✓] Systemd unit template updated with variable handling fixes."
 
 # Ensure config file exists
 touch "$CONFIG_FILE"
@@ -164,6 +164,8 @@ sync_and_apply() {
     for domain in "${target_domains[@]}"; do
         if [ -n "$domain" ]; then
             systemctl enable --now "avahi-alias@${domain}.service"
+            # Explicitly force-restart to fix active instances built with the broken systemd layout
+            systemctl restart "avahi-alias@${domain}.service" || true
         fi
     done
     echo "[✓] Network broadcasts are live and fully synchronized."

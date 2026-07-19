@@ -14,6 +14,7 @@ APPS=(
     "io.github.shiftey.Desktop"
     "org.libreoffice.LibreOffice"
     "org.geogebra.GeoGebra"
+    "com.valvesoftware.Steam"
 )
 
 # loop through and install applications
@@ -21,6 +22,8 @@ for app in "${APPS[@]}"; do
     echo "Installing $app..."
     sudo flatpak install flathub "$app" -y
 done
+
+flatpak override --user --filesystem=/home/shared/steam com.valvesoftware.Steam
 
 # append .profile file to set environment variables
 # export GDK_BACKEND=x11

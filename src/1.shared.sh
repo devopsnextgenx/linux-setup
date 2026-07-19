@@ -68,3 +68,16 @@ sudo mkdir -p \
 sudo chown -R :shared /home/shared/lmstudio
 sudo chmod -R g+rwx /home/shared/lmstudio
 sudo chmod -R g+s /home/shared/lmstudio
+
+# add steam shared directory (shared game library across local users)
+echo "Setting up Steam shared directory..."
+sudo mkdir -p /home/shared/steam
+sudo chown -R :shared /home/shared/steam
+sudo chgrp -R shared /home/shared/steam
+sudo chmod -R g+rwx /home/shared/steam
+sudo chmod -R g+s /home/shared/steam
+sudo setfacl -R -d -m g:shared:rwx /home/shared/steam
+sudo setfacl -R -m g:shared:rwx /home/shared/steam
+
+
+echo "Setup complete! Please restart your session for group changes to take effect."

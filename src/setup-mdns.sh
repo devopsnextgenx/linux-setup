@@ -55,7 +55,7 @@ echo "[✓] Systemd unit template updated."
 touch "$CONFIG_FILE"
 new_additions_count=0
 
-# Loop the interactive menu until the user decides to exit
+# Loop the interactive menu entry-by-entry
 while true; do
     echo "---"
     echo "[*] Step 3: Current Configuration Review"
@@ -75,53 +75,40 @@ while true; do
     fi
     echo "---"
 
-    echo "[*] Step 4: Interactive Input Loop"
-    echo "Enter domain names (separated by spaces) to add them."
-    echo "Type 'exit' or press Enter on an empty line to finish and apply changes."
-    read -r -p "Enter domains: " user_input
+    echo "[*] Step 4: Add a New Hostname"
+    echo "Enter ONE hostname to add it (or press ENTER on an empty line to finish)."
+    read -r -p "Enter hostname: " user_input
 
-    # Clean the input to check for exit keywords
-    exit_check=$(echo "$user_input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
-    if [ -z "$user_input" ] || [ "$exit_check" = "exit" ]; then
-        echo "[*] Exiting input loop. Finalizing setup..."
+    # Clean the input to check for empty strings or exit strings
+    clean_name=$(echo "$user_input" | tr -d '[:space:]')
+    exit_check=$(echo "$clean_name" | tr '[:upper:]' '[:lower:]')
+    
+    if [ -z "$clean_name" ] || [ "$exit_check" = "exit" ]; then
+        echo "[*] Finalizing and applying network changes..."
         break
     fi
 
-    # Process individual entries from the line input
-    for domain in $user_input; do
-        clean_name=$(echo "$domain" | tr -d '[:space:]')
-        [ -z "$clean_name" ] && continue
-        
-        # Guard against accidentally adding the literal word 'exit' if mixed in a list
-        if [ "$(echo "$clean_name" | tr '[:upper:]' '[:lower:]')" = "exit" ]; then
-            continue
-        fi
+    # Force trailing .local extension
+    if [[ ! "$clean_name" =~ \.local$ ]]; then
+        clean_name="${clean_name}.local"
+    fi
 
-        # Force trailing .local
-        if [[ ! "$clean_name" =~ \.local$ ]]; then
-            clean_name="${clean_name}.local"
-        fi
-
-        # Check for duplicates against the updated config file array
-        is_duplicate=false
-        for ext_dom in "${existing_domains[@]}"; do
-            if [ "$clean_name" = "$ext_dom" ]; then
-                is_duplicate=true
-                break
-            fi
-        done
-
-        if [ "$is_duplicate" = true ]; then
-            echo "[INFO] Domain '$clean_name' is already configured. Skipping."
-        else
-            echo "[+] Appending new domain configuration: $clean_name"
-            echo "$clean_name" >> "$CONFIG_FILE"
-            ((new_additions_count++))
-            
-            # Re-read file immediately so consecutive inputs in the same turn catch back-to-back duplicates
-            mapfile -t existing_domains < "$CONFIG_FILE"
+    # Check for duplicates against the configuration file
+    is_duplicate=false
+    for ext_dom in "${existing_domains[@]}"; do
+        if [ "$clean_name" = "$ext_dom" ]; then
+            is_duplicate=true
+            break
         fi
     done
+
+    if [ "$is_duplicate" = true ]; then
+        echo "[INFO] Domain '$clean_name' is already configured! Skipping."
+    else
+        echo "[+] Appending new domain configuration: $clean_name"
+        echo "$clean_name" >> "$CONFIG_FILE"
+        ((new_additions_count++))
+    fi
 done
 
 # Read final state of target mappings

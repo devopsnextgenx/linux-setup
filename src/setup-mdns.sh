@@ -55,7 +55,6 @@ BindsTo=avahi-daemon.service
 
 [Service]
 Type=simple
-# %I stays clean inside the script arguments execution path
 ExecStart=/usr/local/bin/avahi-alias-runner.sh %I
 Restart=always
 RestartSec=5
@@ -95,11 +94,9 @@ sync_and_apply() {
     active_instances=$(systemctl list-units --type=service --all "avahi-alias@*" --no-legend | awk '{print $1}')
     
     for instance in $active_instances; do
-        # Extract the escaped string from systemd unit name
         escaped_name=$(echo "$instance" | sed -n 's/avahi-alias@\(.*\)\.service/\1/p')
         [ -z "$escaped_name" ] && continue
         
-        # Unescape it using systemd-escape to get back the clean domain name string
         domain_name=$(systemd-escape --unescape "$escaped_name")
         
         found=false
@@ -120,7 +117,6 @@ sync_and_apply() {
     for domain in "${target_domains[@]}"; do
         if [ -n "$domain" ]; then
             echo "[+] Ensuring broadcast for: $domain"
-            # Safely escape the name for systemd string boundaries
             safe_instance=$(systemd-escape "$domain")
             systemctl enable --now "avahi-alias@${safe_instance}.service"
             systemctl restart "avahi-alias@${safe_instance}.service"
@@ -129,18 +125,18 @@ sync_and_apply() {
     echo "[✓] Synchronization complete."
 }
 
-# --- INITIAL AUTOSYNC ON BOOTUP/RUN ---
-# This ensures existing contents are launched even if you choose menu option 4 later
+# --- INITIAL AUTOSYNC ON RUN ---
 sync_and_apply
 sleep 1
 
-# --- MAIN MENU ---
+# --- MAIN MENU & INPUT LOOPS ---
+
 while true; do
     clear
     print_current_config
     echo "  MAIN MENU - AVAHI MDNS MANAGER"
-    echo "  1) Add Hostname"
-    echo "  2) Remove Hostname"
+    echo "  1) Add Hostnames (Bulk/Loop)"
+    echo "  2) Remove Hostnames (Bulk/Loop)"
     echo "  3) Save & Sync Changes"
     echo "  4) Exit without changes"
     echo "------------------------------------------"
@@ -148,32 +144,66 @@ while true; do
 
     case "$menu_choice" in
         1)
-            read -r -p "Enter hostname: " input
-            clean=$(echo "$input" | tr -d '[:space:]')
-            [ -z "$clean" ] && continue
-            [[ ! "$clean" =~ \.local$ ]] && clean="${clean}.local"
-            if grep -qFx "$clean" "$CONFIG_FILE" 2>/dev/null; then
-                echo "[!] Already exists."
-            else
-                echo "$clean" >> "$CONFIG_FILE"
+            while true; do
+                clear
+                print_current_config
+                echo "--- ADD HOSTNAME MODE ---"
+                echo "Enter hostname(s). Separate multiples with commas."
+                echo "Example: pixtor-minis, plex-minis, jellyfin-minis"
+                echo "Press ENTER on a blank line to return to Main Menu."
+                echo "------------------------------------------"
+                read -r -p "Hostnames to ADD: " raw_input
+                
+                [ -z "$raw_input" ] && break
+
+                # Using a Here-String ensures loop runs in current shell context, avoiding subshell traps
+                while read -r item; do
+                    clean=$(echo "$item" | tr -d '[:space:]')
+                    [ -z "$clean" ] && continue
+                    [[ ! "$clean" =~ \.local$ ]] && clean="${clean}.local"
+                    
+                    if grep -qFx "$clean" "$CONFIG_FILE" 2>/dev/null; then
+                        echo "[!] '$clean' already exists."
+                    else
+                        echo "$clean" >> "$CONFIG_FILE"
+                        echo "[+] Added: $clean"
+                    fi
+                done <<< "$(echo "$raw_input" | tr ',' '\n')"
+                
                 sort -o "$CONFIG_FILE" "$CONFIG_FILE"
-                echo "[+] Added and sorted alphabetically."
-            fi
-            sleep 1
+                echo "Press Enter to continue or add more..."
+                read -r
+            done
             ;;
         2)
-            read -r -p "Enter hostname to remove: " input
-            clean=$(echo "$input" | tr -d '[:space:]')
-            [ -z "$clean" ] && continue
-            [[ ! "$clean" =~ \.local$ ]] && clean="${clean}.local"
-            if grep -qFx "$clean" "$CONFIG_FILE" 2>/dev/null; then
-                sed -i "/^${clean}$/d" "$CONFIG_FILE"
+            while true; do
+                clear
+                print_current_config
+                echo "--- REMOVE HOSTNAME MODE ---"
+                echo "Enter exact hostname(s) to remove. Separate multiples with commas."
+                echo "Press ENTER on a blank line to return to Main Menu."
+                echo "------------------------------------------"
+                read -r -p "Hostnames to REMOVE: " raw_input
+                
+                [ -z "$raw_input" ] && break
+
+                while read -r item; do
+                    clean=$(echo "$item" | tr -d '[:space:]')
+                    [ -z "$clean" ] && continue
+                    [[ ! "$clean" =~ \.local$ ]] && clean="${clean}.local"
+                    
+                    if grep -qFx "$clean" "$CONFIG_FILE" 2>/dev/null; then
+                        sed -i "/^${clean}$/d" "$CONFIG_FILE"
+                        echo "[-] Removed: $clean"
+                    else
+                        echo "[!] '$clean' not found."
+                    fi
+                done <<< "$(echo "$raw_input" | tr ',' '\n')"
+                
                 sort -o "$CONFIG_FILE" "$CONFIG_FILE"
-                echo "[-] Removed."
-            else
-                echo "[!] Not found."
-            fi
-            sleep 1
+                echo "Press Enter to continue or remove more..."
+                read -r
+            done
             ;;
         3)
             sync_and_apply

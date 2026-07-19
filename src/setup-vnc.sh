@@ -33,6 +33,7 @@ fi
 CURRENT_USER=$USER
 USER_HOME=$HOME
 VNC_DIR="$USER_HOME/.vnc"
+USER_SYSTEMD_DIR="$USER_HOME/.config/systemd/user"
 
 # Calculate display variables
 DISPLAY_NUM=$((UID - 1000))
@@ -42,35 +43,37 @@ fi
 PORT=$((5900 + DISPLAY_NUM))
 IP_ADDR=$(hostname -I | awk '{print $1}')
 
-if [ ! -d "$VNC_DIR" ]; then
-    mkdir -p "$VNC_DIR"
-    chmod 700 "$VNC_DIR"
+# Clean up the legacy broken system-level service if it exists
+LEGACY_SYSTEM_SERVICE="/etc/systemd/system/vncserver-${CURRENT_USER}.service"
+if [ -f "$LEGACY_SYSTEM_SERVICE" ]; then
+    echo "Cleaning up legacy broken system service..."
+    sudo systemctl disable "vncserver-${CURRENT_USER}.service" --now > /dev/null 2>&1
+    sudo rm -f "$LEGACY_SYSTEM_SERVICE"
+    sudo systemctl daemon-reload
 fi
 
-# Write xstartup tailored for headless, persistent GNOME sessions
+# Ensure directories exist
+mkdir -p "$VNC_DIR" && chmod 700 "$VNC_DIR"
+mkdir -p "$USER_SYSTEMD_DIR"
+
+# Modern, simplified xstartup for local user-slice execution
 TARGET_XSTARTUP=$(cat << 'EOF'
 #!/bin/sh
 unset SESSION_MANAGER
 unset DBUS_SESSION_BUS_ADDRESS
 export XDG_CURRENT_DESKTOP="GNOME"
 export XDG_MENU_PREFIX="gnome-"
-export GNOME_SHELL_SESSION_MODE="ubuntu"
-
-if [ -x /usr/bin/dbus-launch ]; then
-  exec dbus-launch --exit-with-session gnome-session
-else
-  exec gnome-session
-fi
+exec gnome-session
 EOF
 )
 
 if [ ! -f "$VNC_DIR/xstartup" ] || [ "$(cat "$VNC_DIR/xstartup")" != "$TARGET_XSTARTUP" ]; then
-    echo "Configuring persistent xstartup sequence for GNOME..."
+    echo "Configuring xstartup sequence for GNOME..."
     echo "$TARGET_XSTARTUP" > "$VNC_DIR/xstartup"
     chmod +x "$VNC_DIR/xstartup"
 fi
 
-# Modern TigerVNC configuration options
+# Configuration parameters
 TARGET_CONFIG=$(cat << 'EOF'
 localhost=no
 geometry=1920x1080
@@ -91,54 +94,50 @@ else
     echo "Authentication profile already verified."
 fi
 
-# Ensure user lingering is enabled so the systemd --user bus is alive
+# Ensure user lingering is enabled so the user systemd instance boots up with the machine
 if [ ! -f "/var/lib/systemd/linger/${CURRENT_USER}" ]; then
-    echo "Enabling systemd user lingering for user persistence..."
+    echo "Enabling systemd user lingering for boot persistence..."
     sudo loginctl enable-linger "${CURRENT_USER}"
 fi
 
 # =====================================================================
-# 3. Dedicated User-Specific Systemd Service Generation
+# 3. User-Level Systemd Service Generation
 # =====================================================================
-SERVICE_FILE="/etc/systemd/system/vncserver-${CURRENT_USER}.service"
-TARGET_SERVICE_CONTENT=$(cat << EOF
+USER_SERVICE_FILE="${USER_SYSTEMD_DIR}/vncserver.service"
+TARGET_USER_SERVICE=$(cat << EOF
 [Unit]
-Description=Remote desktop service (VNC) for ${CURRENT_USER} on :${DISPLAY_NUM}
-After=syslog.target network.target
+Description=Remote desktop service (VNC) running in user slice
+After=default.target
 
 [Service]
 Type=forking
-User=${CURRENT_USER}
-Group=${CURRENT_USER}
-WorkingDirectory=${USER_HOME}
-# Map directly to the active systemd user runtime D-Bus socket
-Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${UID}/bus
 ExecStartPre=-/usr/bin/tigervncserver -kill :${DISPLAY_NUM} > /dev/null 2>&1
 ExecStart=/usr/bin/tigervncserver :${DISPLAY_NUM} -localhost no -geometry 1920x1080 -depth 24
 ExecStop=/usr/bin/tigervncserver -kill :${DISPLAY_NUM}
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 EOF
 )
 
-# Deploy the clean, explicit user service file
-if [ ! -f "$SERVICE_FILE" ] || [ "$(cat "$SERVICE_FILE")" != "$TARGET_SERVICE_CONTENT" ]; then
-    echo "Deploying dedicated persistent systemd service for ${CURRENT_USER}..."
-    echo "$TARGET_SERVICE_CONTENT" | sudo tee "$SERVICE_FILE" > /dev/null
-    sudo systemctl daemon-reload
+# Deploy the user-level service descriptor
+if [ ! -f "$USER_SERVICE_FILE" ] || [ "$(cat "$USER_SERVICE_FILE")" != "$TARGET_USER_SERVICE" ]; then
+    echo "Deploying user-level systemd service configuration..."
+    echo "$TARGET_USER_SERVICE" > "$USER_SERVICE_FILE"
+    systemctl --user daemon-reload
 fi
 
 # =====================================================================
 # 4. Persistence Orchestration & Lifecycle Control
 # =====================================================================
-echo "Registering persistent boot sequence for display :$DISPLAY_NUM..."
+echo "Registering user-level persistent boot sequence..."
 
-sudo systemctl daemon-reload
-sudo systemctl enable "vncserver-${CURRENT_USER}.service"
-sudo systemctl restart "vncserver-${CURRENT_USER}.service"
+# Enable and restart via the user instance manager
+systemctl --user daemon-reload
+systemctl --user enable vncserver.service
+systemctl --user restart vncserver.service
 
-if sudo systemctl is-active --quiet "vncserver-${CURRENT_USER}.service"; then
+if systemctl --user is-active --quiet vncserver.service; then
     echo "========================================================="
     echo " Persistent VNC Server Configured & Running Safely!"
     echo "========================================================="
@@ -147,5 +146,5 @@ if sudo systemctl is-active --quiet "vncserver-${CURRENT_USER}.service"; then
     echo "even if no users are logged in locally."
     echo "========================================================="
 else
-    echo "ERROR: Service failed to start. Please run: 'systemctl status vncserver-${CURRENT_USER}.service' to diagnose."
+    echo "ERROR: User service failed to start. Please run: 'systemctl --user status vncserver.service' to diagnose."
 fi

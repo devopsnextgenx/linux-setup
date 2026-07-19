@@ -33,9 +33,9 @@ chmod +x "$VNC_DIR/xstartup"
 
 # 3. Create basic config file to allow public connections (-localhost no)
 cat << 'EOF' > "$VNC_DIR/config"
-$localhost = "no";
-$geometry = "1920x1080";
-$depth = "24";
+localhost=no
+geometry=1920x1080
+depth=24
 EOF
 
 # 4. Set VNC Password if it doesn't exist

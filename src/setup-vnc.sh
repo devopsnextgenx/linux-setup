@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =====================================================================
-# 1. System Dependency Setup (Requires sudo if packages/utilities are missing)
+# 1. System Dependency Setup
 # =====================================================================
 REQUIRED_PKGS=("tigervnc-standalone-server" "tigervnc-common" "dbus-x11")
 MISSING_PKGS=()
@@ -22,37 +22,7 @@ if [ ${#MISSING_PKGS[@]} -gt 0 ]; then
 fi
 
 # =====================================================================
-# 2. Idempotent Systemd Unit Template Creation
-# =====================================================================
-SERVICE_TEMPLATE="/etc/systemd/system/vncserver@.service"
-TARGET_SERVICE_CONTENT=$(cat << 'EOF'
-[Unit]
-Description=Remote desktop service (VNC) for %i
-After=syslog.target network.target
-
-[Service]
-Type=forking
-User=%i
-Group=%i
-WorkingDirectory=/home/%i
-ExecStartPre=-/usr/bin/tigervncserver -kill :%i > /dev/null 2>&1
-ExecStart=/usr/bin/tigervncserver :%i -localhost no -geometry 1920x1080 -depth 24
-ExecStop=/usr/bin/tigervncserver -kill :%i
-
-[Install]
-WantedBy=multi-user.target
-EOF
-)
-
-# Deploy the systemd template only if it doesn't match or exist
-if [ ! -f "$SERVICE_TEMPLATE" ] || [ "$(cat "$SERVICE_TEMPLATE")" != "$TARGET_SERVICE_CONTENT" ]; then
-    echo "Deploying system-wide persistent systemd service template..."
-    echo "$TARGET_SERVICE_CONTENT" | sudo tee "$SERVICE_TEMPLATE" > /dev/null
-    sudo systemctl daemon-reload
-fi
-
-# =====================================================================
-# 3. User-Space Environment Provisioning (Must NOT run as root)
+# 2. User-Space Environment Provisioning (Must NOT run as root)
 # =====================================================================
 if [ "$EUID" -eq 0 ]; then
    echo "System components verified."
@@ -64,12 +34,20 @@ CURRENT_USER=$USER
 USER_HOME=$HOME
 VNC_DIR="$USER_HOME/.vnc"
 
+# Calculate display variables
+DISPLAY_NUM=$((UID - 1000))
+if [ $DISPLAY_NUM -le 0 ]; then
+    DISPLAY_NUM=1
+fi
+PORT=$((5900 + DISPLAY_NUM))
+IP_ADDR=$(hostname -I | awk '{print $1}')
+
 if [ ! -d "$VNC_DIR" ]; then
     mkdir -p "$VNC_DIR"
     chmod 700 "$VNC_DIR"
 fi
 
-# Write xstartup tailored for headless, persistent GNOME sessions via dbus
+# Write xstartup tailored for headless, persistent GNOME sessions
 TARGET_XSTARTUP=$(cat << 'EOF'
 #!/bin/sh
 unset SESSION_MANAGER
@@ -92,7 +70,7 @@ if [ ! -f "$VNC_DIR/xstartup" ] || [ "$(cat "$VNC_DIR/xstartup")" != "$TARGET_XS
     chmod +x "$VNC_DIR/xstartup"
 fi
 
-# Modern Debian TigerVNC configuration options
+# Modern TigerVNC configuration options
 TARGET_CONFIG=$(cat << 'EOF'
 localhost=no
 geometry=1920x1080
@@ -114,30 +92,60 @@ else
 fi
 
 # =====================================================================
+# 3. Dedicated User-Specific Systemd Service Generation
+# =====================================================================
+SERVICE_FILE="/etc/systemd/system/vncserver-${CURRENT_USER}.service"
+TARGET_SERVICE_CONTENT=$(cat << EOF
+[Unit]
+Description=Remote desktop service (VNC) for ${CURRENT_USER} on :${DISPLAY_NUM}
+After=syslog.target network.target
+
+[Service]
+Type=forking
+User=${CURRENT_USER}
+Group=${CURRENT_USER}
+WorkingDirectory=${USER_HOME}
+ExecStartPre=-/usr/bin/tigervncserver -kill :${DISPLAY_NUM} > /dev/null 2>&1
+ExecStart=/usr/bin/tigervncserver :${DISPLAY_NUM} -localhost no -geometry 1920x1080 -depth 24
+ExecStop=/usr/bin/tigervncserver -kill :${DISPLAY_NUM}
+
+[Install]
+WantedBy=multi-user.target
+EOF
+)
+
+# Clean up the old, broken template service if it exists
+if [ -f "/etc/systemd/system/vncserver@.service" ]; then
+    echo "Cleaning up legacy broken service template..."
+    sudo systemctl disable "vncserver@${DISPLAY_NUM}" --now > /dev/null 2>&1
+    sudo rm -f "/etc/systemd/system/vncserver@.service"
+fi
+
+# Deploy the clean, explicit user service file
+if [ ! -f "$SERVICE_FILE" ] || [ "$(cat "$SERVICE_FILE")" != "$TARGET_SERVICE_CONTENT" ]; then
+    echo "Deploying dedicated persistent systemd service for ${CURRENT_USER}..."
+    echo "$TARGET_SERVICE_CONTENT" | sudo tee "$SERVICE_FILE" > /dev/null
+    sudo systemctl daemon-reload
+fi
+
+# =====================================================================
 # 4. Persistence Orchestration & Lifecycle Control
 # =====================================================================
-DISPLAY_NUM=$((UID - 1000))
-if [ $DISPLAY_NUM -le 0 ]; then
-    DISPLAY_NUM=1
-fi
-
-PORT=$((5900 + DISPLAY_NUM))
-IP_ADDR=$(hostname -I | awk '{print $1}')
-
 echo "Registering persistent boot sequence for display :$DISPLAY_NUM..."
 
-# Safely stop existing instances before refreshing service states
-if sudo systemctl is-active --quiet "vncserver@$DISPLAY_NUM"; then
-    echo "Restarting service worker..."
-    sudo systemctl restart "vncserver@$DISPLAY_NUM"
-else
-    sudo systemctl enable "vncserver@$DISPLAY_NUM" --now
-fi
+# Enable and force-start the correct service structure
+sudo systemctl daemon-reload
+sudo systemctl enable "vncserver-${CURRENT_USER}.service"
+sudo systemctl restart "vncserver-${CURRENT_USER}.service"
 
-echo "========================================================="
-echo " Persistent VNC Server Configured & Running!"
-echo "========================================================="
-echo "Connection Address: $IP_ADDR:$PORT (or $IP_ADDR:$DISPLAY_NUM)"
-echo "This session will automatically start when the system boots,"
-echo "even if no users are logged in locally."
-echo "========================================================="
+if sudo systemctl is-active --quiet "vncserver-${CURRENT_USER}.service"; then
+    echo "========================================================="
+    echo " Persistent VNC Server Configured & Running Safely!"
+    echo "========================================================="
+    echo "Connection Address: $IP_ADDR:$PORT (or $IP_ADDR:$DISPLAY_NUM)"
+    echo "This session will automatically start when the system boots,"
+    echo "even if no users are logged in locally."
+    echo "========================================================="
+else
+    echo "ERROR: Service failed to start. Please run: 'systemctl status vncserver-${CURRENT_USER}.service' to diagnose."
+fi

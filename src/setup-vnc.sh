@@ -56,18 +56,23 @@ fi
 mkdir -p "$VNC_DIR" && chmod 700 "$VNC_DIR"
 mkdir -p "$USER_SYSTEMD_DIR"
 
-# Modern, simplified xstartup forcing software rendering for headless GNOME
+# Hand off session control to Debian's native Xsession architecture
 TARGET_XSTARTUP=$(cat << 'EOF'
 #!/bin/sh
 unset SESSION_MANAGER
 unset DBUS_SESSION_BUS_ADDRESS
 
-# Force GNOME to use CPU/Software rendering instead of looking for a hardware GPU
+# Force software rendering for headless performance
 export LIBGL_ALWAYS_SOFTWARE=1
 export XDG_CURRENT_DESKTOP="GNOME"
 export XDG_MENU_PREFIX="gnome-"
 
-exec gnome-session
+# Execute Debian's global system session initialization wrapper
+if [ -x /etc/X11/Xsession ]; then
+  exec /etc/X11/Xsession
+else
+  exec gnome-session
+fi
 EOF
 )
 

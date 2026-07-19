@@ -91,6 +91,12 @@ else
     echo "Authentication profile already verified."
 fi
 
+# Ensure user lingering is enabled so the systemd --user bus is alive
+if [ ! -f "/var/lib/systemd/linger/${CURRENT_USER}" ]; then
+    echo "Enabling systemd user lingering for user persistence..."
+    sudo loginctl enable-linger "${CURRENT_USER}"
+fi
+
 # =====================================================================
 # 3. Dedicated User-Specific Systemd Service Generation
 # =====================================================================
@@ -105,6 +111,8 @@ Type=forking
 User=${CURRENT_USER}
 Group=${CURRENT_USER}
 WorkingDirectory=${USER_HOME}
+# Map directly to the active systemd user runtime D-Bus socket
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${UID}/bus
 ExecStartPre=-/usr/bin/tigervncserver -kill :${DISPLAY_NUM} > /dev/null 2>&1
 ExecStart=/usr/bin/tigervncserver :${DISPLAY_NUM} -localhost no -geometry 1920x1080 -depth 24
 ExecStop=/usr/bin/tigervncserver -kill :${DISPLAY_NUM}
@@ -113,13 +121,6 @@ ExecStop=/usr/bin/tigervncserver -kill :${DISPLAY_NUM}
 WantedBy=multi-user.target
 EOF
 )
-
-# Clean up the old, broken template service if it exists
-if [ -f "/etc/systemd/system/vncserver@.service" ]; then
-    echo "Cleaning up legacy broken service template..."
-    sudo systemctl disable "vncserver@${DISPLAY_NUM}" --now > /dev/null 2>&1
-    sudo rm -f "/etc/systemd/system/vncserver@.service"
-fi
 
 # Deploy the clean, explicit user service file
 if [ ! -f "$SERVICE_FILE" ] || [ "$(cat "$SERVICE_FILE")" != "$TARGET_SERVICE_CONTENT" ]; then
@@ -133,7 +134,6 @@ fi
 # =====================================================================
 echo "Registering persistent boot sequence for display :$DISPLAY_NUM..."
 
-# Enable and force-start the correct service structure
 sudo systemctl daemon-reload
 sudo systemctl enable "vncserver-${CURRENT_USER}.service"
 sudo systemctl restart "vncserver-${CURRENT_USER}.service"

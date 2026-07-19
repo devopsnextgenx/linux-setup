@@ -4,7 +4,7 @@
 # chmod +x dotnet-install.sh
 # ./dotnet-install.sh --channel 9.0
 
-sudo nala install -y dotnet-sdk-9.0 powershell
+sudo apt install -y dotnet-sdk-9.0 powershell
 
 # /etc/environment
 

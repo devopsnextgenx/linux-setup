@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Exit immediately ONLY if a foundational command fails. 
+# Exit immediately ONLY if a foundational command fails.
 set -o pipefail
 
 # Ensure script runs as root
@@ -10,6 +10,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 CONFIG_FILE="/etc/avahi/aliases.conf"
+RUNNER_SCRIPT="/usr/local/bin/avahi-alias-runner.sh"
 SYSTEMD_TEMPLATE="/etc/systemd/system/avahi-alias@.service"
 
 echo "[*] Step 1: Checking package requirements..."
@@ -31,8 +32,22 @@ fi
 
 systemctl enable --now avahi-daemon.service
 
-echo "[*] Step 2: Provisioning systemd template..."
-# Using double $$ ensures systemd passes variables directly to the underlying bash execution shell
+echo "[*] Step 2: Deploying clean backend runner script..."
+# Generate the dedicated external argument wrapper to completely protect hyphens (-)
+cat << 'EOF' > "$RUNNER_SCRIPT"
+#!/usr/bin/env bash
+IP=$(ip route get 1.1.1.1 | awk '{print $7; exit}')
+if [ -z "$IP" ]; then
+    IP=$(hostname -I | awk '{print $1}')
+fi
+exec /usr/bin/avahi-publish -a -R "$1" "$IP"
+EOF
+
+chmod +x "$RUNNER_SCRIPT"
+echo "[✓] Runner script active at $RUNNER_SCRIPT"
+
+echo "[*] Step 3: Provisioning systemd template..."
+# Point systemd cleanly to the runner file without inline shell token breaking strings
 cat << 'EOF' > "$SYSTEMD_TEMPLATE"
 [Unit]
 Description=Publish %I via mDNS ZeroConf Alias
@@ -41,7 +56,7 @@ BindsTo=avahi-daemon.service
 
 [Service]
 Type=simple
-ExecStart=/bin/bash -c 'IP=$$(ip route get 1.1.1.1 | awk "{print \$$7; exit}"); exec /usr/bin/avahi-publish -a -R "%I" "$$IP"'
+ExecStart=/usr/local/bin/avahi-alias-runner.sh %I
 Restart=always
 RestartSec=5
 
@@ -50,12 +65,12 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-echo "[✓] Systemd unit template updated with variable handling fixes."
+echo "[✓] Systemd unit template updated and locked down."
 
-# Ensure config file exists
+# Ensure domain tracking list configuration file exists
 touch "$CONFIG_FILE"
 
-# --- HELPER FUNCTIONS ---
+# --- INTERACTIVE HELPER FUNCTIONS ---
 
 print_current_config() {
     echo "=========================================="
@@ -85,7 +100,7 @@ add_domains_loop() {
         clean_name=$(echo "$user_input" | tr -d '[:space:]')
         [ -z "$clean_name" ] && break
         
-        # Format name cleanly
+        # Format suffix cleanly
         if [[ ! "$clean_name" =~ \.local$ ]]; then
             clean_name="${clean_name}.local"
         fi
@@ -133,9 +148,8 @@ remove_domains_loop() {
             clean_name="${clean_name}.local"
         fi
 
-        # Verification check
+        # Verification drop check
         if grep -Fq "$clean_name" "$CONFIG_FILE"; then
-            # Re-write file excluding the deleted element safely
             sed -i "/^${clean_name}$/d" "$CONFIG_FILE"
             echo "[-] Removed configuration for: $clean_name"
             sleep 0.5
@@ -147,10 +161,10 @@ remove_domains_loop() {
 }
 
 sync_and_apply() {
-    echo "[*] Syncing live backend network alias services..."
+    echo "[*] Reconciling background network alias services..."
     mapfile -t target_domains < "$CONFIG_FILE"
     
-    # Tear down services that were deleted in the interface
+    # Tear down active units missing from target config list
     active_instances=$(systemctl list-units --type=service --state=running "avahi-alias@*" --no-legend | awk '{print $1}')
     for instance in $active_instances; do
         domain_name=$(echo "$instance" | sed -n 's/.*@\(.*\)\.service/\1/p')
@@ -160,11 +174,10 @@ sync_and_apply() {
         fi
     done
 
-    # Start up all verified domains left in the mapping config
+    # Start up and hard refresh the active target sets
     for domain in "${target_domains[@]}"; do
         if [ -n "$domain" ]; then
             systemctl enable --now "avahi-alias@${domain}.service"
-            # Explicitly force-restart to fix active instances built with the broken systemd layout
             systemctl restart "avahi-alias@${domain}.service" || true
         fi
     done
@@ -197,7 +210,7 @@ while true; do
             exit 0
             ;;
         4)
-            echo "[i] Aborted. No changes applied to live services."
+            echo "[i] Aborted. No adjustments made to active daemons."
             exit 0
             ;;
         *)

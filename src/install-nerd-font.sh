@@ -36,4 +36,14 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
 fi
 
 echo "Fonts installed successfully!"
+
+# 1. Extract your default terminal profile ID
+CONF_PROFILE=$(gsettings get org.gnome.Terminal.ProfilesList default | tr -d "'")
+
+# 2. Tell the profile to use a custom font instead of the system default
+gsettings set "org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$CONF_PROFILE/" use-system-font false
+
+# 3. Apply the MesloLGS NF font (and set size to 11)
+gsettings set "org.gnome.Terminal.Legacy.Profile:/org/gnome/terminal/legacy/profiles:/:$CONF_PROFILE/" font "MesloLGS NF 11"
+
 echo "⚠️ IMPORTANT: You must open your Terminal settings and change the font to 'MesloLGS NF' before proceeding."

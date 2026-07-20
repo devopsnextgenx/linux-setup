@@ -59,7 +59,7 @@ sudo apt update
 sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 # Set up directory permissions for Docker
-sudo chown :docker /home/shared/docker
+sudo chown admn:docker /home/shared/docker
 sudo chmod g+rwx /home/shared/docker
 sudo chmod g+s /home/shared/docker
 
@@ -79,7 +79,7 @@ graphroot = "/home/shared/podman"
 EOF
 
 # Set up directory permissions for Podman
-sudo chown :containers /home/shared/podman
+sudo chown admn:containers /home/shared/podman
 sudo chmod g+rwx /home/shared/podman
 sudo chmod g+s /home/shared/podman
 

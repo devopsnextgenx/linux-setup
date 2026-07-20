@@ -1,4 +1,4 @@
-#!/input/local/bin/bash
+#!/bin/bash
 
 # Determine the OS and set the correct font directory
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then

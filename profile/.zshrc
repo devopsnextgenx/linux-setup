@@ -222,10 +222,27 @@ du5() (
             m = (u=="K") ? 1024 : (u=="M") ? 1048576 : (u=="G") ? 1073741824 : (u=="T") ? 1099511627776 : 1
             return v * m
         }
-        function szcolor(s,   u) {
-            u = substr(s, length(s), 1)
-            return (u=="K") ? 46 : (u=="M") ? 226 : (u=="G") ? 208 : (u=="T") ? 196 : (u=="P") ? 201 : 245
+        function mix(a, b, t) { return a + (b - a) * t }
+        function q(r, g, b) {   # RGB -> nearest xterm-256 color cube index
+            return 16 + 36 * int(r / 255 * 5 + 0.5) + 6 * int(g / 255 * 5 + 0.5) + int(b / 255 * 5 + 0.5)
         }
+        # size gradient (log scale inside each band):
+        #   >=1G red | 500M-1G yellow->red | 10M-500M green->yellow | <10M blue->green
+        function gcolor(b,   t, lb) {
+            if (b >= 1073741824) return q(255, 0, 0)
+            if (b >= 524288000) {
+                t = (log(b) - log(524288000)) / (log(1073741824) - log(524288000))
+                return q(255, mix(255, 0, t), 0)
+            }
+            if (b >= 10485760) {
+                t = (log(b) - log(10485760)) / (log(524288000) - log(10485760))
+                return q(mix(0, 255, t), 255, 0)
+            }
+            lb = (b < 1024) ? 1024 : b
+            t = (log(lb) - log(1024)) / (log(10485760) - log(1024))
+            return q(mix(40, 0, t), mix(130, 255, t), mix(255, 0, t))
+        }
+        function szcolor(s) { return gcolor(bytes(s)) }
         BEGIN {
             R = color ? sprintf("%c[0m", 27) : ""
             B = color ? sprintf("%c[1m", 27) : ""

@@ -158,31 +158,33 @@ gifify() {
 }
 
 # Show top storage consumers up to 5 directory levels
-# du5 - colored, side-by-side, concurrent storage report (works in bash AND zsh)
+# du5 - colorful, side-by-side, concurrent storage report (bash AND zsh)
 # Add to ~/.bashrc or ~/.zshrc (or: source du5.sh)
-#
-# Body is wrapped in ( ... ) so it runs in a subshell: no "[1] 1234" job
-# noise, and temp files are cleaned up on exit / Ctrl-C.
+# Force colors when piping: DU5_COLOR=1 du5 | less -R   |   disable: NO_COLOR=1
 
 du5() (
     tmp=$(mktemp -d) || exit 1
     trap 'kill $(jobs -p) 2>/dev/null; rm -rf "$tmp"' EXIT
     trap 'exit 130' INT TERM
 
-    # ---------- colors (off when piped or NO_COLOR is set) ----------
-    if [ -t 1 ] && [ -z "$NO_COLOR" ]; then
-        RST=$(printf '\033[0m');   BLD=$(printf '\033[1m');   DIM=$(printf '\033[2m')
-        CYN=$(printf '\033[1;36m'); GRN=$(printf '\033[32m');  YEL=$(printf '\033[33m')
-        RED=$(printf '\033[1;31m'); MAG=$(printf '\033[1;35m'); BLU=$(printf '\033[1;34m')
-        cols=$(tput cols 2>/dev/null || echo 120)
+    if { [ -t 1 ] || [ -n "$DU5_COLOR" ]; } && [ -z "$NO_COLOR" ]; then
+        COLOR=1; cols=$(tput cols 2>/dev/null || echo 120)
     else
-        RST=; BLD=; DIM=; CYN=; GRN=; YEL=; RED=; MAG=; BLU=
-        cols=120
+        COLOR=0; cols=120
     fi
     TAB=$(printf '\t')
     RULE=$(printf '%*s' "$cols" '' | tr ' ' '=')
 
-    # scan <group> <index> <dir> <depth>  (runs in background)
+    # banner <bg-256color> <fg-256color> <text>
+    banner() {
+        if [ "$COLOR" -eq 1 ]; then
+            printf '\033[48;5;%sm\033[1;38;5;%sm%-*s\033[0m\n' "$1" "$2" "$cols" " $3"
+        else
+            printf '%s\n %s\n%s\n' "$RULE" "$3" "$RULE"
+        fi
+    }
+
+    # scan <group> <index> <dir> <depth>  (background)
     scan() {
         {
             du -h --max-depth="$4" "$3" 2>/dev/null |
@@ -191,7 +193,6 @@ du5() (
         } &
     }
 
-    # ready <group> <count>: true when all scans of the group are finished
     ready() {
         _i=0
         while [ "$_i" -lt "$2" ]; do
@@ -200,72 +201,88 @@ du5() (
         done
     }
 
-    # render <group> <title> <dir>...: side-by-side columns
+    # render <group> <title> <banner-bg> <dir>...
     render() {
-        _g=$1; _title=$2; shift 2
-        _n=$#; _dl=; _files=; _i=0
-        for _d in "$@"; do
-            _dl="$_dl$_d$TAB"
-            _i=$((_i + 1))
-        done
-        _i=0
+        _g=$1; _title=$2; _bg=$3; shift 3
+        _n=$#; _dl=; _i=0
+        for _d in "$@"; do _dl="$_dl$_d$TAB"; done
         while [ "$_i" -lt "$_n" ]; do
             set -- "$@" "$tmp/$_g.$_i.out"
             _i=$((_i + 1))
         done
-        # drop the original dir args, keep only the file args
         shift "$_n"
 
-        awk -v n="$_n" -v cols="$cols" -v title="$_title" -v dirs="$_dl" \
-            -v RST="$RST" -v DIM="$DIM" -v CYN="$CYN" -v GRN="$GRN" -v YEL="$YEL" \
-            -v RED="$RED" -v MAG="$MAG" -v BLU="$BLU" -v rule="$RULE" '
+        echo
+        banner "$_bg" 231 "▣ Storage Analysis: $_title"
+
+        awk -v n="$_n" -v cols="$cols" -v dirs="$_dl" -v color="$COLOR" '
+        function fg(c) { return color ? sprintf("%c[38;5;%dm", 27, c) : "" }
+        function bytes(s,   v, u, m) {
+            v = s + 0; u = substr(s, length(s), 1)
+            m = (u=="K") ? 1024 : (u=="M") ? 1048576 : (u=="G") ? 1073741824 : (u=="T") ? 1099511627776 : 1
+            return v * m
+        }
+        function szcolor(s,   u) {
+            u = substr(s, length(s), 1)
+            return (u=="K") ? 46 : (u=="M") ? 226 : (u=="G") ? 208 : (u=="T") ? 196 : (u=="P") ? 201 : 245
+        }
         BEGIN {
+            R = color ? sprintf("%c[0m", 27) : ""
+            B = color ? sprintf("%c[1m", 27) : ""
             split(dirs, D, "\t")
-            w = int((cols - (n - 1) * 5) / n); maxp = w - 7
-            sep = "  " DIM "│" RST "  "
+            split("81 213 220 118 141", ACC, " ")
+            w = int((cols - (n - 1) * 5) / n); bw = 8; maxp = w - 7 - bw - 1
+            sep = "  " fg(240) "│" R "  "
+
             for (i = 0; i < n; i++) {
-                f = ARGV[i + 1]; r = 0
-                while ((getline l < f) > 0 && r < 5) { row[i, r] = l; r++ }
+                f = ARGV[i + 1]; r = 0; mx[i] = 1
+                while ((getline l < f) > 0 && r < 5) {
+                    row[i, r] = l; r++
+                    b = bytes(substr(l, 1, index(l, "\t") - 1)); if (b > mx[i]) mx[i] = b
+                }
                 close(f)
             }
-            dash = ""; for (k = 0; k < w; k++) dash = dash "-"
 
-            print ""
-            print CYN rule RST
-            print CYN " Storage Analysis: " title RST
-            print CYN rule RST
-
+            # column headers
             line = ""
             for (i = 0; i < n; i++) {
                 p = D[i + 1]
-                if (length(p) > w) p = ".." substr(p, length(p) - w + 3)
-                line = line BLU sprintf("%-" w "s", p) RST
+                if (length(p) > w - 2) p = ".." substr(p, length(p) - w + 5)
+                line = line fg(ACC[i + 1]) B "▌" sprintf("%-" (w - 1) "s", p) R
                 if (i < n - 1) line = line sep
             }
             print line
-
             line = ""
             for (i = 0; i < n; i++) {
-                line = line DIM dash RST
+                d = ""; for (k = 0; k < w; k++) d = d "━"
+                line = line fg(ACC[i + 1]) d R
                 if (i < n - 1) line = line sep
             }
             print line
 
+            # rows
             for (r = 0; r < 5; r++) {
                 line = ""
                 for (i = 0; i < n; i++) {
-                    l = row[i, r]; size = ""; p = ""
+                    l = row[i, r]; size = ""; p = ""; bar = ""; c = szcolor("")
                     if (l != "") {
                         t = index(l, "\t"); size = substr(l, 1, t - 1); p = substr(l, t + 1)
                         base = D[i + 1]
                         if (p == base) p = "."
                         else if (index(p, base "/") == 1) p = substr(p, length(base) + 2)
                         if (length(p) > maxp) p = ".." substr(p, length(p) - maxp + 3)
+                        c = szcolor(size)
+                        fill = int(bw * bytes(size) / mx[i] + 0.5); if (fill < 1) fill = 1
+                        for (k = 0; k < bw; k++)
+                            bar = bar ((k < fill) ? fg(c) "█" : fg(238) "░")
+                    } else {
+                        for (k = 0; k < bw; k++) bar = bar " "
                     }
-                    u = substr(size, length(size), 1)
-                    c = (u == "K") ? GRN : (u == "M") ? YEL : (u == "G") ? RED : \
-                        (u == "T" || u == "P") ? MAG : DIM
-                    line = line c sprintf("%6s", size) RST " " sprintf("%-" maxp "s", p)
+                    # path: dim parent, bright leaf
+                    pad = maxp - length(p); if (pad < 0) pad = 0
+                    lp = 0; for (k = length(p); k >= 1; k--) if (substr(p, k, 1) == "/") { lp = k; break }
+                    pp = fg(244) substr(p, 1, lp) fg(255) B substr(p, lp + 1) R
+                    line = line fg(c) B sprintf("%6s", size) R " " bar R " " pp sprintf("%" pad "s", "")
                     if (i < n - 1) line = line sep
                 }
                 print line
@@ -274,38 +291,38 @@ du5() (
         }' "$@"
     }
 
-    # ---------- directories ----------
     H1=/home/shared;  H2=/home/kira
     G1=/home/kira/git/devopsnextgenx
     G2=/home/kira/git/amitkshirsagar13
     G3=/home/kira/tmp
 
-    # ---------- start every scan at once ----------
     scan host 0 "$H1" 3; scan host 1 "$H2" 3
     scan git  0 "$G1" 1; scan git  1 "$G2" 1; scan git 2 "$G3" 1
 
-    # ---------- filesystem (instant, shown while scans run) ----------
-    echo "${CYN}${RULE}${RST}"
-    echo "${CYN} FILESYSTEM${RST}"
-    echo "${CYN}${RULE}${RST}"
-    df -h /home
+    # filesystem (instant) with colored Use%
+    banner 36 16 "▣ FILESYSTEM"
+    df -h /home | awk -v color="$COLOR" '
+        function fg(c) { return color ? sprintf("%c[38;5;%dm", 27, c) : "" }
+        BEGIN { R = color ? sprintf("%c[0m", 27) : ""; B = color ? sprintf("%c[1m", 27) : "" }
+        NR == 1 { printf "%s%-16s %6s %6s %6s  %4s  %-20s  %s%s\n", fg(244) B, $1, $2, $3, $4, $5, "Usage", "Mounted on", R; next }
+        { p = $5 + 0; c = (p >= 90) ? 196 : (p >= 70) ? 220 : 46
+          d = 20; bar = ""; f = int(d * p / 100 + 0.5)
+          for (k = 0; k < d; k++) bar = bar ((k < f) ? fg(c) "█" : fg(238) "░")
+          printf "%s%-16s%s %6s %6s %6s  %s%4s%s  %s%s  %s%s%s\n", fg(81), $1, R, $2, $3, $4, fg(c) B, $5, R, bar, R, fg(213), $6, R }'
 
-    # ---------- print each group as soon as all of its scans finish ----------
     hp=0; gp=0
     while [ "$hp" -eq 0 ] || [ "$gp" -eq 0 ]; do
         if [ "$hp" -eq 0 ] && ready host 2; then
-            render host "Host" "$H1" "$H2"; hp=1
+            render host "Host" 27 "$H1" "$H2"; hp=1
         fi
         if [ "$gp" -eq 0 ] && ready git 3; then
-            render git "git" "$G1" "$G2" "$G3"; gp=1
+            render git "git" 91 "$G1" "$G2" "$G3"; gp=1
         fi
         [ "$hp" -eq 1 ] && [ "$gp" -eq 1 ] || sleep 0.1
     done
 
     echo
-    echo "${CYN}${RULE}${RST}"
-    echo "${BLD} du5x <path>${RST}"
-    echo "${CYN}${RULE}${RST}"
+    banner 238 220 "▣ du5x <path>   — drill into any directory"
 )
 
 # aliases (add to ~/.bashrc or ~/.zshrc)

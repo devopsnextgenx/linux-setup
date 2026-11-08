@@ -27,7 +27,7 @@ if [[ -d "$HOME/bin" ]]; then
 fi
 
 # Added by LM Studio CLI (lms)
-export PATH="$PATH:$HOME/.cache/lm-studio/bin:$HOME/.lmstudio/bin"
+export PATH="$PATH:/home/kira/.cache/lm-studio/bin"
 export OLLAMA_API_KEY="ollama"
 export OLLAMA_BASE_URL="http://localhost:11434/v1"
 
@@ -156,50 +156,163 @@ gifify() {
     local output="${input%.*}.gif"
     ffmpeg -i "$input" -vf "fps=$fps,scale=$scale:-1:flags=lanczos" "$output"
 }
-# Show top storage consumers and filesystem usage
-du5() {
-    local left="/home/shared"
-    local right="/home/kira"
-    local limit=7
 
-    echo
-    echo "================== FILESYSTEM =================="
+# Show top storage consumers up to 5 directory levels
+# du5 - colored, side-by-side, concurrent storage report (works in bash AND zsh)
+# Add to ~/.bashrc or ~/.zshrc (or: source du5.sh)
+#
+# Body is wrapped in ( ... ) so it runs in a subshell: no "[1] 1234" job
+# noise, and temp files are cleaned up on exit / Ctrl-C.
+
+du5() (
+    tmp=$(mktemp -d) || exit 1
+    trap 'kill $(jobs -p) 2>/dev/null; rm -rf "$tmp"' EXIT
+    trap 'exit 130' INT TERM
+
+    # ---------- colors (off when piped or NO_COLOR is set) ----------
+    if [ -t 1 ] && [ -z "$NO_COLOR" ]; then
+        RST=$(printf '\033[0m');   BLD=$(printf '\033[1m');   DIM=$(printf '\033[2m')
+        CYN=$(printf '\033[1;36m'); GRN=$(printf '\033[32m');  YEL=$(printf '\033[33m')
+        RED=$(printf '\033[1;31m'); MAG=$(printf '\033[1;35m'); BLU=$(printf '\033[1;34m')
+        cols=$(tput cols 2>/dev/null || echo 120)
+    else
+        RST=; BLD=; DIM=; CYN=; GRN=; YEL=; RED=; MAG=; BLU=
+        cols=120
+    fi
+    TAB=$(printf '\t')
+    RULE=$(printf '%*s' "$cols" '' | tr ' ' '=')
+
+    # scan <group> <index> <dir> <depth>  (runs in background)
+    scan() {
+        {
+            du -h --max-depth="$4" "$3" 2>/dev/null |
+                sort -hr | head -n 6 | tail -n 5 > "$tmp/$1.$2.out"
+            : > "$tmp/$1.$2.done"
+        } &
+    }
+
+    # ready <group> <count>: true when all scans of the group are finished
+    ready() {
+        _i=0
+        while [ "$_i" -lt "$2" ]; do
+            [ -e "$tmp/$1.$_i.done" ] || return 1
+            _i=$((_i + 1))
+        done
+    }
+
+    # render <group> <title> <dir>...: side-by-side columns
+    render() {
+        _g=$1; _title=$2; shift 2
+        _n=$#; _dl=; _files=; _i=0
+        for _d in "$@"; do
+            _dl="$_dl$_d$TAB"
+            _i=$((_i + 1))
+        done
+        _i=0
+        while [ "$_i" -lt "$_n" ]; do
+            set -- "$@" "$tmp/$_g.$_i.out"
+            _i=$((_i + 1))
+        done
+        # drop the original dir args, keep only the file args
+        shift "$_n"
+
+        awk -v n="$_n" -v cols="$cols" -v title="$_title" -v dirs="$_dl" \
+            -v RST="$RST" -v DIM="$DIM" -v CYN="$CYN" -v GRN="$GRN" -v YEL="$YEL" \
+            -v RED="$RED" -v MAG="$MAG" -v BLU="$BLU" -v rule="$RULE" '
+        BEGIN {
+            split(dirs, D, "\t")
+            w = int((cols - (n - 1) * 5) / n); maxp = w - 7
+            sep = "  " DIM "│" RST "  "
+            for (i = 0; i < n; i++) {
+                f = ARGV[i + 1]; r = 0
+                while ((getline l < f) > 0 && r < 5) { row[i, r] = l; r++ }
+                close(f)
+            }
+            dash = ""; for (k = 0; k < w; k++) dash = dash "-"
+
+            print ""
+            print CYN rule RST
+            print CYN " Storage Analysis: " title RST
+            print CYN rule RST
+
+            line = ""
+            for (i = 0; i < n; i++) {
+                p = D[i + 1]
+                if (length(p) > w) p = ".." substr(p, length(p) - w + 3)
+                line = line BLU sprintf("%-" w "s", p) RST
+                if (i < n - 1) line = line sep
+            }
+            print line
+
+            line = ""
+            for (i = 0; i < n; i++) {
+                line = line DIM dash RST
+                if (i < n - 1) line = line sep
+            }
+            print line
+
+            for (r = 0; r < 5; r++) {
+                line = ""
+                for (i = 0; i < n; i++) {
+                    l = row[i, r]; size = ""; p = ""
+                    if (l != "") {
+                        t = index(l, "\t"); size = substr(l, 1, t - 1); p = substr(l, t + 1)
+                        base = D[i + 1]
+                        if (p == base) p = "."
+                        else if (index(p, base "/") == 1) p = substr(p, length(base) + 2)
+                        if (length(p) > maxp) p = ".." substr(p, length(p) - maxp + 3)
+                    }
+                    u = substr(size, length(size), 1)
+                    c = (u == "K") ? GRN : (u == "M") ? YEL : (u == "G") ? RED : \
+                        (u == "T" || u == "P") ? MAG : DIM
+                    line = line c sprintf("%6s", size) RST " " sprintf("%-" maxp "s", p)
+                    if (i < n - 1) line = line sep
+                }
+                print line
+            }
+            exit
+        }' "$@"
+    }
+
+    # ---------- directories ----------
+    H1=/home/shared;  H2=/home/kira
+    G1=/home/kira/git/devopsnextgenx
+    G2=/home/kira/git/amitkshirsagar13
+    G3=/home/kira/tmp
+
+    # ---------- start every scan at once ----------
+    scan host 0 "$H1" 3; scan host 1 "$H2" 3
+    scan git  0 "$G1" 1; scan git  1 "$G2" 1; scan git 2 "$G3" 1
+
+    # ---------- filesystem (instant, shown while scans run) ----------
+    echo "${CYN}${RULE}${RST}"
+    echo "${CYN} FILESYSTEM${RST}"
+    echo "${CYN}${RULE}${RST}"
     df -h /home
 
-    echo
-    echo "================== MAIN STORAGE =================="
-
-    printf "%-75s | %-75s\n" "$left" "$right"
-    printf '%s\n' "$(printf '%0.s-' {1..75})-+-$(printf '%0.s-' {1..75})"
-
-    paste \
-        <(du -h --max-depth=3 "$left" 2>/dev/null |
-            sort -hr | head -n "$limit" |
-            awk '{printf "%-10s %-64s\n", $1, $2}') \
-        <(du -h --max-depth=3 "$right" 2>/dev/null |
-            sort -hr | head -n "$limit" |
-            awk '{printf "%-10s %-64s\n", $1, $2}') |
-        awk -F '\t' '{printf "%-75s | %-75s\n", $1, $2}'
-
-    # Development and temporary directories (3 columns)
-    local dir1="/home/kira/git/devopsnextgenx"
-    local dir2="/home/kira/git/amitkshirsagar13"
-    local dir3="/home/kira/tmp"
-    local width=48
+    # ---------- print each group as soon as all of its scans finish ----------
+    hp=0; gp=0
+    while [ "$hp" -eq 0 ] || [ "$gp" -eq 0 ]; do
+        if [ "$hp" -eq 0 ] && ready host 2; then
+            render host "Host" "$H1" "$H2"; hp=1
+        fi
+        if [ "$gp" -eq 0 ] && ready git 3; then
+            render git "git" "$G1" "$G2" "$G3"; gp=1
+        fi
+        [ "$hp" -eq 1 ] && [ "$gp" -eq 1 ] || sleep 0.1
+    done
 
     echo
-    echo "================ DEVELOPMENT & TEMP STORAGE ================"
+    echo "${CYN}${RULE}${RST}"
+    echo "${BLD} du5x <path>${RST}"
+    echo "${CYN}${RULE}${RST}"
+)
 
-    printf "%-${width}s | %-${width}s | %-${width}s\n" \
-        "$dir1" "$dir2" "$dir3"
+# aliases (add to ~/.bashrc or ~/.zshrc)
+alias fpm='~/bin/flatpak-manage.sh'          # full run: update + audit
+alias fpm-check='~/bin/flatpak-manage.sh --check'   # audit only, no changes
+alias fpm-report='cat "$(ls -t ~/.local/state/flatpak-manage/report-* | head -1)"'
 
-    printf '%s\n' "$(printf '%*s' "$width" '' | tr ' ' '-')-+-$(printf '%*s' "$width" '' | tr ' ' '-')-+-$(printf '%*s' "$width" '' | tr ' ' '-')"
-
-    paste \
-        <(du -h --max-depth=1 "$dir1" 2>/dev/null | sort -hr | head -n 3) \
-        <(du -h --max-depth=1 "$dir2" 2>/dev/null | sort -hr | head -n 3) \
-        <(du -h --max-depth=1 "$dir3" 2>/dev/null | sort -hr | head -n 3) |
-    awk -F '\t' -v w="$width" '{
-        printf "%-*s | %-*s | %-*s\n", w, $1, w, $2, w, $3
-    }'
+du5x() {
+    du -h --max-depth=1 "${1:-.}" | sort -hr | head -n 6 | tail -n 5
 }

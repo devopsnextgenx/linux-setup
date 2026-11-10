@@ -27,13 +27,13 @@ if [[ -d "$HOME/bin" ]]; then
 fi
 
 # Added by LM Studio CLI (lms)
-export PATH="$PATH:/home/kira/.cache/lm-studio/bin"
+export PATH="$PATH:~/.cache/lm-studio/bin"
 export OLLAMA_API_KEY="ollama"
 export OLLAMA_BASE_URL="http://localhost:11434/v1"
 
 # tabtab source for electron-forge package
 # uninstall by removing these lines or running `tabtab uninstall electron-forge`
-[[ -f /home/kira/git/devopsnextgenx/gnome-extensions/gui-react-ollama/node_modules/tabtab/.completions/electron-forge.zsh ]] && . /home/kira/git/devopsnextgenx/gnome-extensions/gui-react-ollama/node_modules/tabtab/.completions/electron-forge.zsh
+[[ -f ~/git/devopsnextgenx/gnome-extensions/gui-react-ollama/node_modules/tabtab/.completions/electron-forge.zsh ]] && . ~/git/devopsnextgenx/gnome-extensions/gui-react-ollama/node_modules/tabtab/.completions/electron-forge.zsh
 # Shell-GPT integration ZSH v0.2
 _sgpt_zsh() {
 if [[ -n "$BUFFER" ]]; then
@@ -58,7 +58,7 @@ askx() {
   ask "$1" -c | bash
 }
 
-. "$HOME/.local/bin/env"
+# . "$HOME/.local/bin/env"
 alias zdocker="docker --context zbox"
 alias dups="find . -type f -name '*(1).jpg' |cut -d "/" -f 2,3|grep -v jpg|uniq -c |sort"
 alias xacts="cd /media/data/xos/actresses"
@@ -78,8 +78,8 @@ ls "$1"/*"(1)"*
 }
 
 # Added by LM Studio CLI tool (lms)
-export PATH="$PATH:/home/kira/.lmstudio/bin"
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+export PATH="$PATH:~/.lmstudio/bin"
+# eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 # alias chat-server='~/bin/llama-turbo-server -m "/home/shared/lmstudio/.lmstudio/models/mradermacher/MN-CaptainErisNebula-12B-Chimera-v1.1-heretic-uncensored-abliterated-i1-GGUF/MN-CaptainErisNebula-12B-Chimera-v1.1-heretic-uncensored-abliterated.i1-Q4_K_S.gguf" --port 8080 --host 0.0.0.0'
 alias chat-server='~/bin/llama-turbo-server -m "/home/shared/lmstudio/.lmstudio/models/mradermacher/MN-CaptainErisNebula-12B-Chimera-v1.1-heretic-uncensored-abliterated-i1-GGUF/MN-CaptainErisNebula-12B-Chimera-v1.1-heretic-uncensored-abliterated.i1-Q4_K_S.gguf" --port 8080 --host 0.0.0.0 -ngl 12 --flash-attn on -c 16384 --cache-type-k turbo3 --cache-type-v turbo3 --ubatch-size 128 -n 8192'
 alias novel-server='~/bin/llama-turbo-server -m "/home/shared/lmstudio/.lmstudio/models/mradermacher/MN-CaptainErisNebula-12B-Chimera-v1.1-heretic-uncensored-abliterated-i1-GGUF/MN-CaptainErisNebula-12B-Chimera-v1.1-heretic-uncensored-abliterated.i1-Q4_K_S.gguf" --port 8080 --host 0.0.0.0 -ngl 12 --flash-attn on -c 32768 --cache-type-k turbo3 --cache-type-v turbo3 -n 12000 --ignore-eos --repeat-penalty 1.17 --metrics'
@@ -87,7 +87,7 @@ alias lexi-server='~/bin/llama-turbo-server -m "/home/shared/lmstudio/.lmstudio/
 alias zbox='ssh admn@192.168.12.111'
 
 # opencode
-export PATH=/home/kira/.opencode/bin:$PATH
+export PATH=~/.opencode/bin:$PATH
 alias zsim='sudo /opt/simulator/simulator --no-sandbox'
 
 
@@ -105,8 +105,8 @@ zle -N _sgpt_zsh
 bindkey ^l _sgpt_zsh
 # Shell-GPT integration ZSH v0.2
 export PATH="$HOME/.npm-global/bin:$PATH"
-export PATH="/home/kira/.nvm/versions/node/v24.0.1/bin:$PATH"
-export PATH="/home/kira/.nvm/versions/node/v24.0.1/bin:$PATH"
+export PATH="~/.nvm/versions/node/v24.0.1/bin:$PATH"
+export PATH="~/.nvm/versions/node/v24.0.1/bin:$PATH"
 
 command_not_found_handler() {
     if (( $+commands[$1.sh] )); then
@@ -308,10 +308,10 @@ du5() (
         }' "$@"
     }
 
-    H1=/home/shared;  H2=/home/kira
-    G1=/home/kira/git/devopsnextgenx
-    G2=/home/kira/git/amitkshirsagar13
-    G3=/home/kira/tmp
+    H1=/home/shared;  H2=~
+    G1=~/git/devopsnextgenx
+    G2=~/git/amitkshirsagar13
+    G3=~/tmp
 
     scan host 0 "$H1" 3; scan host 1 "$H2" 3
     scan git  0 "$G1" 1; scan git  1 "$G2" 1; scan git 2 "$G3" 1

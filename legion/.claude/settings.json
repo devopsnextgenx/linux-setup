@@ -1,0 +1,10 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://192.168.12.211:9874",
+    "ANTHROPIC_AUTH_TOKEN": "legion-7a",
+    "ANTHROPIC_API_KEY": "",
+    "ANTHROPIC_MODEL": "legion-7a",
+    "CLAUDE_CODE_AUTO_MODE_SERVER": "0"
+  },
+  "model": "legion-7a"
+}

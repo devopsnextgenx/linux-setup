@@ -1,0 +1,22 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://legion-7a.local:9874",
+    "ANTHROPIC_AUTH_TOKEN": "local-llama-cpp",
+    "ANTHROPIC_MODEL": "gemma4-26b",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "gemma4-26b",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "gemma4-26b",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "gemma4-26b",
+    "ANTHROPIC_SMALL_FAST_MODEL": "gemma4-26b",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "gemma4-26b",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "CLAUDE_CODE_AUTO_MODE_SERVER": "0",
+    "DISABLE_TELEMETRY": "1",
+    "DISABLE_ERROR_REPORTING": "1",
+    "DISABLE_AUTOUPDATER": "1",
+    "API_TIMEOUT_MS": "3000000"
+  },
+  "tui": "fullscreen",
+  "theme": "dark",
+  "editorMode": "normal",
+  "verbose": true
+}

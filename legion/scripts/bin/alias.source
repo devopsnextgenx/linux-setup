@@ -1,0 +1,14 @@
+# sourced by both ~/.bashrc and ~/.zshrc
+export PATH="$HOME/.local/bin:$PATH"
+
+if [ -n "${ZSH_VERSION:-}" ]; then
+    . /home/shared/bin/alias.zsh
+else
+    . /home/shared/bin/alias.env
+fi
+. /home/shared/bin/alias.du5
+
+alias llmd="llm gemma4-26b -d"
+alias llmd64="llm gemma4-26b -d -c 65536"
+alias llmd128="llm gemma4-26b -d -c 131072"
+alias llmd256="llm gemma4-26b -d -c 262144"

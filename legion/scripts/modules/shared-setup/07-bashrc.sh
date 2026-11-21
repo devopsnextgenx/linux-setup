@@ -32,7 +32,7 @@ uninstall_bashrc() {
             local user_home=$(getent passwd "$user" | cut -d: -f6)
             local bashrc_path="$user_home/.bashrc"
             if [ -f "$bashrc_path" ]; then
-                sed -i '/# Source shared common environment/,/\[ -f \/home\/shared\/common\/env.sh/d' "$bashrc_path" || true
+                sed -i '/# Source shared common environment/,/\[ -f \/home\/shared\/common\/env.shared/d' "$bashrc_path" || true
                 # The above might be too aggressive. A simpler way:
                 # sed -i '/# Source shared common environment/,/source \/home\/shared\/common\/env.sh/d' "$bashrc_path"
                 # But let's be careful with regex.

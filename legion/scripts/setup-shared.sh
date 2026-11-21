@@ -71,7 +71,8 @@ run_setup() {
 
     info "Running $module_name..."
     # shellcheck disable=SC1090
-    source "$module_path" "$func_name"
+    source "$module_path"
+    "$func_name"
 }
 
 # Function to run a module's uninstall function
@@ -96,7 +97,8 @@ run_uninstall() {
 
     info "Uninstalling $module_name..."
     # shellcheck disable=SC1090
-    source "$module_path" "$func_name"
+    source "$module_path"
+    "$func_name"
 }
 
 # --- Pre-flight Checks ---

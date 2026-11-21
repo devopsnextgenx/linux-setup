@@ -1,5 +1,5 @@
-set -euo pipefail
 #!/bin/bash
+set -euo pipefail
 
 # --- Colors ---
 RED='\033[0;31m'
@@ -19,11 +19,6 @@ success() { echo -e "${GREEN}[✔] $*${NC}"; }
 user_exists() { id "$1" &>/dev/null; }
 user_home()   { getent passwd "$1" | cut -d: -f6; }
 
-apt_has() {
-    local cand
-    cand=$(apt-cache policy "$1" 2>/dev/null | awk '/Candidate:/ {print $2}')
-    [ -n "$cand" ] && [ "$cand" != "(none)" ]
-}
 
 # Root check
 check_root() {

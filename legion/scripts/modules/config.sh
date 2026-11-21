@@ -1,8 +1,7 @@
-set -euo pipefail
 #!/bin/bash
+set -euo pipefail
 
 # --- Default Configuration ---
-
 export SHARED_GROUP="sharedusers"
 export SHARED_DIR="/home/shared"
 export P10K_DIR="$SHARED_DIR/powerlevel10k"

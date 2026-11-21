@@ -4,7 +4,6 @@
 set -euo pipefail
 
 # Load modules
-BASE_DIR="$(dirname "$(readlink -f "$0")")"
 # Note: The modules are in modules/shared-setup/ or modules/
 # But we are running from the root of the repo probably, or from the scripts directory.
 # The original script was in scripts/setup-shared.sh.

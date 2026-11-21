@@ -15,9 +15,9 @@ source "$SCRIPT_DIR/modules/utils.sh"
 export FORCE=0
 export ENABLE_GDM_TWEAK=1
 export ENABLE_FIREFOX_TWEAK=0
+export ENABLE_AMDGPU_TOP=0
 export P10K_SRC=""
 export EXTRA_USERS=()
-export ENABLE_AMDGPU_TOP=0
 
 show_help() {
     cat <<EOF
@@ -34,6 +34,7 @@ Options:
   --no-gdm-tweak         Skip the GDM login-screen tweak
   --enable-firefox       Run the WhiteSur Firefox tweak per user
   --install-amdgpu-top    Install amdgpu_top package
+EOF
 }
 
 show_version() {
@@ -52,6 +53,7 @@ parse_args() {
             --p10k-src) P10K_SRC="$2"; shift 2 ;;
             --no-gdm-tweak) ENABLE_GDM_TWEAK=0; shift ;;
             --enable-firefox) ENABLE_FIREFOX_TWEAK=1; shift ;;
+            --install-amdgpu-top) ENABLE_AMDGPU_TOP=1; shift ;;
             -*) echo "Unknown option: $1" >&2; show_help; exit 1 ;;
             *) EXTRA_USERS+=("$1"); shift ;;
         esac
@@ -137,6 +139,10 @@ main() {
         run_module "$MODULES_DIR/04-wallpapers.sh" "wallpapers"
         run_module "$MODULES_DIR/05-themes.sh" "themes"
         run_module "$MODULES_DIR/06-user-profile.sh" "user_profile"
+
+        if [ "$ENABLE_AMDGPU_TOP" = 1 ]; then
+            run_module "$MODULES_DIR/07-amdgpu-top.sh" "amdgpu_top"
+        fi
 
         if [ "$VERIFY" = true ]; then
             log "Running verification..."

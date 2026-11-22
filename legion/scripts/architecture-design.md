@@ -3,6 +3,8 @@
 ## Overview
 This document outlines the design patterns and architectural principles used to refactor monolithic shell scripts into a modular, maintainable framework. The primary goal is to move away from "God Scripts" toward a structured, domain-driven architecture.
 
+Use appropriate Skill linux-script-writer for writing scripts.
+
 ## Core Components
 
 ### Folder Structure

@@ -16,6 +16,16 @@ export PODMAN_ARCHIVES_DIR="$PODMAN_DIR/archives"
 export THEMES_DEST="$SHARE_DIR/themes"
 export ICONS_DEST="$SHARE_DIR/icons"
 
+# --- Legion Setup Configuration ---
+export LEGION_VERSION="1.3.2"
+export LEGION_DESCRIPTION="Setup script for Lenovo Legion Linux tools"
+export LEGION_REPO_URL="https://github.com/johnfanv2/LenovoLegionLinux.git"
+export LEGION_WORK_DIR="/home/shared/git/LenovoLegionLinux"
+export LEGION_BIN_DIR="/home/shared/bin"
+export LEGION_VENV_DIR="/home/shared/venv/legion"
+export LEGION_LAUNCHER_DIR="/usr/share/applications"
+export LEGION_LAUNCHER_GUI="$LEGION_LAUNCHER_DIR/legion-linux-gui.desktop"
+
 # Repo URLs
 export REPO_P10K="https://github.com/romkatv/powerlevel10k.git"
 export REPO_ICONS="https://github.com/vinceliuice/MacTahoe-icon-theme"

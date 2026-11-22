@@ -19,10 +19,22 @@ The scripts are organized into two primary categories: **Core Utilities** (used 
 - **Logging:** Color-coded output (`log`, `warn`, `error`, `info`, `success`).
 - **System Helpers:** User existence checks, architecture detection, and root verification.
 - **Package Management:** Wrappers for `apt` and `flatpak`.
-- **File/Directory Helpers:** Directory creation (`ensure_dirs`), symlinking (`link_entries`), and repository synchronization (`sync_repo`).
+- **File/Dir Helpers:** Directory creation (`ensure_dirs`), symlinking (`link_entries`), and repository synchronization (`sync_repo`).
 - **State Management:** Helpers for tracking installation state via stamps (`needs_install`, `write_stamp`).
 
 ## Feature Modules
+
+### `legion-setup/`
+**Goal:** Provide a modular setup for Lenovo Legion Linux tools.
+
+| Script | Description |
+| :--- | :--- |
+| `01-dependencies.sh` | Installs system and python dependencies via apt/pip. |
+| `02-source.sh` | Clones/updates the LenovoLegionLinux repository. |
+| `03-kernel.sh` | Builds and installs the kernel module. |
+| `04-python.sh` | Creates a python venv and installs tools. |
+| `05-integration.sh` | Handles symlinks, desktop launchers, and wrappers. |
+| `06-verify.sh` | Performs sanity checks on the installation. |
 
 ### `osx-setup/`
 **Goal:** Provide a macOS-like visual and terminal experience on Linux.
@@ -46,7 +58,7 @@ The scripts are organized into two primary categories: **Core Utilities** (used 
 | `03-packages.sh` | Installs essential system packages via `apt` and `flatpak` (e.g., podman, kind, gnome-tweaks). |
 | `04-tools.sh` | Installs developer toolchains (NVM/Node.js, Python venv, Rust/Cargo, Go) into shared paths. |
 | `05-podman.sh` | Configures rootless Podman with shared image/container storage and provides a `podman-get` helper for efficient image sharing. |
-| `06-environment.sh` | Generates a `env.shared` file that maps shared tool paths to environment variables for users. |
+| `06-environment.sh` | Generates an `env.shared` file that maps shared tool paths to environment variables for users. |
 | `07-bashrc.sh` | Automatically configures user `.bashrc` files to source the shared `env.shared` file. |
 
 ## Summary of Directory Structure
@@ -56,6 +68,13 @@ scripts/modules/
 ├── config.sh            # Global configuration
 ├── utils.sh            # Common utility functions
 ├── module-design.md    # This documentation
+├── legion-setup/        # Lenovo Legion setup modules
+│   ├── 01-dependencies.sh
+│   ├── 02-source.sh
+│   ├── 03-kernel.sh
+│   ├── 04-python.sh
+│   ├── 05-integration.sh
+│   └── 06-verify.sh
 ├── osx-setup/           # macOS-like visual setup
 │   ├── 01-system.sh
 │   ├── 02-p10k.sh

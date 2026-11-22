@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Metadata
-VERSION="1.3.0"
+VERSION="1.3.2"
 DESCRIPTION="Setup script for Lenovo Legion Linux tools"
 REPO_URL="https://github.com/johnfanv2/LenovoLegionLinux.git"
 WORK_DIR="/home/shared/git/LenovoLegionLinux"
@@ -10,7 +10,6 @@ BIN_DIR="/home/shared/bin"
 VENV_DIR="/home/shared/venv/legion"
 LAUNCHER_DIR="/usr/share/applications"
 LAUNCHER_GUI="$LAUNCHER_DIR/legion-linux-gui.desktop"
-LAUNCHER_CLI="$LAUNCHER_DIR/legion-linux-cli.desktop"
 
 # Colors
 RED='\033[0;31m'
@@ -59,7 +58,7 @@ show_help() {
     echo "  --force                 Skip confirmation prompts and overwrite existing files"
     echo ""
     echo "Executables are linked into: $BIN_DIR"
-    echo "System-wide launchers (GUI and CLI) are created in: $LAUNCHER_DIR"
+    echo "System-wide GUI launcher (runs as root via sudo) is created in: $LAUNCHER_DIR"
     echo ""
     echo "Examples:"
     echo "  $(basename "$0")"
@@ -206,6 +205,47 @@ StartupNotify=true
     log_success "Created launcher $file"
 }
 
+# legion_gui must run as root. Use passwordless sudo when available (sudo -n
+# never prompts, so it works from a desktop launcher with no terminal) and pass
+# the display session variables through explicitly, since sudo resets the
+# environment (WAYLAND_DISPLAY and XDG_RUNTIME_DIR are dropped by default).
+# Falls back to pkexec if sudo would need a password.
+create_gui_wrapper() {
+    local wrapper="$BIN_DIR/legion_gui_launcher"
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY-RUN] Write root wrapper $wrapper"
+        return 0
+    fi
+
+    cat > "$wrapper" <<'WRAPPER_EOF'
+#!/usr/bin/env bash
+# Launch legion_gui as root via sudo, keeping the user's display session.
+set -euo pipefail
+
+gui="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/legion_gui"
+
+env_args=()
+for v in DISPLAY XAUTHORITY WAYLAND_DISPLAY XDG_RUNTIME_DIR XDG_CURRENT_DESKTOP DBUS_SESSION_BUS_ADDRESS; do
+    if [[ -n "${!v:-}" ]]; then
+        env_args+=("$v=${!v}")
+    fi
+done
+
+if [[ "$(id -u)" -eq 0 ]]; then
+    exec "$gui" "$@"
+fi
+
+if sudo -n true 2>/dev/null; then
+    exec sudo -n env "${env_args[@]}" "$gui" "$@"
+fi
+
+exec pkexec env "${env_args[@]}" "$gui" "$@"
+WRAPPER_EOF
+    chmod 755 "$wrapper"
+    log_success "Created $wrapper"
+}
+
 create_launchers() {
     log_header "Creating Application Launchers"
 
@@ -213,10 +253,12 @@ create_launchers() {
     run_cmd sudo chmod a+rx "$BIN_DIR"
     run_cmd sudo chmod -R a+rX "$VENV_DIR"
 
+    create_gui_wrapper
+
     write_launcher "$LAUNCHER_GUI" \
         "Legion Linux (GUI)" \
         "Lenovo Legion laptop control (graphical)" \
-        "sudo $BIN_DIR/legion_gui" \
+        "$BIN_DIR/legion_gui_launcher" \
         "preferences-system" \
         "false"
 
@@ -301,10 +343,10 @@ verify_installation() {
         log_warn "No legion_cli/legion_gui found in $BIN_DIR."
     fi
 
-    if [[ -f "$LAUNCHER_GUI" && -f "$LAUNCHER_CLI" ]]; then
-        log_success "Found GUI and CLI launchers in $LAUNCHER_DIR"
+    if [[ -f "$LAUNCHER_GUI" && -x "$BIN_DIR/legion_gui_launcher" ]]; then
+        log_success "Found GUI launcher and root wrapper"
     else
-        log_warn "GUI and/or CLI launcher missing in $LAUNCHER_DIR."
+        log_warn "GUI launcher or $BIN_DIR/legion_gui_launcher is missing."
     fi
 
     if [[ "$failures" -gt 0 ]]; then
@@ -323,9 +365,9 @@ uninstall_components() {
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "[DRY-RUN] sudo modprobe -r legion_laptop || true"
         log_info "[DRY-RUN] Run uninstall targets if present in $WORK_DIR"
-        log_info "[DRY-RUN] rm -f $BIN_DIR/legion_cli $BIN_DIR/legion_gui"
+        log_info "[DRY-RUN] rm -f $BIN_DIR/legion_cli $BIN_DIR/legion_gui $BIN_DIR/legion_gui_launcher"
         log_info "[DRY-RUN] rm -rf $VENV_DIR"
-        log_info "[DRY-RUN] sudo rm -f $LAUNCHER_GUI $LAUNCHER_CLI"
+        log_info "[DRY-RUN] sudo rm -f $LAUNCHER_GUI"
         return 0
     fi
 
@@ -339,9 +381,9 @@ uninstall_components() {
         sudo make -C "$WORK_DIR/kernel_module" uninstall
     fi
 
-    rm -f "$BIN_DIR/legion_cli" "$BIN_DIR/legion_gui"
+    rm -f "$BIN_DIR/legion_cli" "$BIN_DIR/legion_gui" "$BIN_DIR/legion_gui_launcher"
     rm -rf "$VENV_DIR"
-    sudo rm -f "$LAUNCHER_GUI" "$LAUNCHER_CLI"
+    sudo rm -f "$LAUNCHER_GUI"
     if command -v update-desktop-database >/dev/null 2>&1; then
         sudo update-desktop-database "$LAUNCHER_DIR" || true
     fi
